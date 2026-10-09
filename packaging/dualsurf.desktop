@@ -1,0 +1,21 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=DualSurf
+GenericName=Web Browser
+Comment=Dual-mode graphical and command-driven browser for Linux
+Exec=dualsurf %U
+Terminal=false
+Icon=dualsurf
+Categories=Network;WebBrowser;Utility;
+MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/dualsurf;
+StartupNotify=true
+Actions=TerminalMode;NewTab;
+
+[Desktop Action TerminalMode]
+Name=Open in Interactive Terminal Mode
+Exec=x-terminal-emulator -e dualsurf --terminal
+
+[Desktop Action NewTab]
+Name=Open New Tab
+Exec=dualsurf tab new
