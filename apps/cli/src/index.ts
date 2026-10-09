@@ -16,6 +16,44 @@ import {
 import { IPC_COMMANDS } from '@dualsurf/ipc-protocol';
 import type { BrowserControllerState, PageMetadata } from '@dualsurf/shared-types';
 
+import { spawn } from 'child_process';
+import * as path from 'path';
+
+async function autoStartControllerIfOffline(client: IpcClient): Promise<boolean> {
+  const isOnline = await client.isControllerAvailable();
+  if (isOnline) return true;
+
+  console.log(`${colors.cyan}[DualSurf]${colors.reset} Browser controller not running. Auto-launching DualSurf in background...`);
+
+  const rootDir = path.resolve(__dirname, '../../..');
+  const mainScript = path.join(rootDir, 'apps', 'desktop', 'dist', 'electron', 'main.js');
+
+  try {
+    const electronBin: string = require('electron');
+    const child = spawn(electronBin, [mainScript], {
+      detached: true,
+      stdio: 'ignore',
+      cwd: rootDir,
+    });
+    child.unref();
+  } catch (err) {
+    console.warn('[DualSurf] Could not auto-spawn electron:', err);
+    return false;
+  }
+
+  // Poll until controller comes online (up to 7 seconds)
+  const startTime = Date.now();
+  while (Date.now() - startTime < 7000) {
+    await new Promise((r) => setTimeout(r, 300));
+    if (await client.isControllerAvailable()) {
+      console.log(`${colors.green}[DualSurf]${colors.reset} Connected to DualSurf browser controller.\n`);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const isJson = args.includes('--json');
@@ -24,23 +62,22 @@ async function main() {
   const client = new IpcClient();
 
   if (filteredArgs.length === 0 || filteredArgs.includes('--terminal') || filteredArgs[0] === 'attach') {
-    // If running with --terminal or attach, or no args when controller is online
-    const isOnline = await client.isControllerAvailable();
-    if (isOnline && (filteredArgs.includes('--terminal') || filteredArgs[0] === 'attach')) {
-      await runInteractiveSession(client);
-      return;
-    }
+    if (filteredArgs.includes('--terminal') || filteredArgs[0] === 'attach') {
+      const isReady = await autoStartControllerIfOffline(client);
+      if (isReady) {
+        await runInteractiveSession(client);
+        return;
+      }
 
-    if (!isOnline && (filteredArgs.includes('--terminal') || filteredArgs[0] === 'attach')) {
       console.error(
-        `${colors.red}Error: DualSurf browser controller is not running.${colors.reset}\n` +
-        `Please start DualSurf first (e.g. npm run dev:desktop).`
+        `${colors.red}Error: DualSurf browser controller could not be started.${colors.reset}\n` +
+        `Please start DualSurf manually via "npm run dev:desktop".`
       );
       process.exit(1);
     }
 
     if (filteredArgs.length === 0) {
-      if (isOnline) {
+      if (await client.isControllerAvailable()) {
         const state: BrowserControllerState = await client.sendCommand(IPC_COMMANDS.TABS_LIST);
         if (isJson) {
           console.log(JSON.stringify(state, null, 2));
@@ -59,14 +96,16 @@ async function main() {
   const command = filteredArgs[0].toLowerCase();
   const rest = filteredArgs.slice(1);
 
+  if (command === 'help' || command === '--help' || command === '-h') {
+    printCliHelp();
+    return;
+  }
+
+  // Ensure browser controller is online
+  await autoStartControllerIfOffline(client);
+
   try {
     switch (command) {
-      case 'help':
-      case '--help':
-      case '-h': {
-        printCliHelp();
-        break;
-      }
 
       case 'tabs': {
         const state: BrowserControllerState = await client.sendCommand(IPC_COMMANDS.TABS_LIST);

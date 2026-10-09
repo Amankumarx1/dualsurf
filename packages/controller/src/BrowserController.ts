@@ -130,7 +130,10 @@ export class BrowserController extends EventEmitter {
 
   public navigate(tabId: TabId | undefined, urlOrQuery: string): boolean {
     const targetId = tabId || this.tabManager.getActiveTabId();
-    if (!targetId) return false;
+    if (!targetId) {
+      this.createTab(urlOrQuery, true);
+      return true;
+    }
 
     const instance = this.tabManager.getTab(targetId);
     if (!instance) return false;
