@@ -1,11 +1,20 @@
-import React from 'react';
-import { Bookmark, Code, Terminal, BookOpen, Compass, Shield } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Bookmark, Code, Terminal, BookOpen, Compass, Shield, Star } from 'lucide-react';
+import type { BookmarkEntry } from '@dualsurf/shared-types';
 
 interface BookmarksBarProps {
   onNavigate: (url: string) => void;
 }
 
 export const BookmarksBar: React.FC<BookmarksBarProps> = ({ onNavigate }) => {
+  const [userBookmarks, setUserBookmarks] = useState<BookmarkEntry[]>([]);
+
+  useEffect(() => {
+    if (window.dualsurf) {
+      window.dualsurf.getBookmarks().then(setUserBookmarks).catch(console.error);
+    }
+  }, []);
+
   const quickLinks = [
     { title: 'DuckDuckGo', url: 'https://duckduckgo.com', icon: <Compass size={12} /> },
     { title: 'GitHub', url: 'https://github.com', icon: <Code size={12} /> },
@@ -17,6 +26,22 @@ export const BookmarksBar: React.FC<BookmarksBarProps> = ({ onNavigate }) => {
   return (
     <div className="bookmarks-bar">
       <Bookmark size={12} style={{ color: 'var(--text-muted)', marginLeft: 4 }} />
+
+      {/* User Saved Bookmarks */}
+      {userBookmarks.map((bm) => (
+        <button
+          key={bm.id}
+          className="bookmark-chip"
+          onClick={() => onNavigate(bm.url)}
+          title={`Bookmark: ${bm.url}`}
+          style={{ borderColor: 'rgba(0, 240, 255, 0.25)' }}
+        >
+          <Star size={11} color="var(--accent-cyan)" />
+          <span style={{ color: 'var(--accent-cyan)' }}>{bm.title}</span>
+        </button>
+      ))}
+
+      {/* Default Quick Links */}
       {quickLinks.map((item) => (
         <button
           key={item.url}

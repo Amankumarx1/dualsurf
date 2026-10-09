@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@dualsurf/ipc-protocol": "^0.1.0",
-    "@dualsurf/shared-types": "^0.1.0"
+    "@dualsurf/shared-types": "^0.1.0",
+    "@dualsurf/storage": "^0.1.0"
   },
   "devDependencies": {
     "electron": "^34.3.0",

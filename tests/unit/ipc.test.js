@@ -91,6 +91,22 @@ describe('DualSurf IPC Protocol & Server Integration', () => {
       this.settings = { ...this.settings, ...s };
       return this.settings;
     },
+    bookmarks: [],
+    getBookmarks() { return this.bookmarks; },
+    addBookmark(url, title) {
+      const bm = { id: 'bm-test', url, title: title || url, createdAt: Date.now() };
+      this.bookmarks.push(bm);
+      return bm;
+    },
+    removeBookmark(id) {
+      this.bookmarks = this.bookmarks.filter(b => b.id !== id);
+      return true;
+    },
+    history: [{ id: 'hist-1', url: 'https://test.local', title: 'Test', visitedAt: Date.now(), visitCount: 1 }],
+    getHistory() { return this.history; },
+    searchHistory(q) { return this.history.filter(h => h.url.includes(q) || h.title.includes(q)); },
+    clearHistory() { this.history = []; },
+    getDownloads() { return [{ id: 'dl-1', filename: 'file.tar.gz', path: '/tmp/file.tar.gz', status: 'completed' }]; },
   };
 
   before(async () => {
@@ -151,5 +167,33 @@ describe('DualSurf IPC Protocol & Server Integration', () => {
 
     const updated = await client.sendCommand(IPC_COMMANDS.SETTINGS_UPDATE, { searchEngine: 'brave' });
     assert.equal(updated.searchEngine, 'brave');
+  });
+
+  it('manages bookmarks over IPC', async () => {
+    const added = await client.sendCommand(IPC_COMMANDS.BOOKMARKS_ADD, {
+      url: 'https://kernel.org',
+      title: 'Linux Kernel',
+    });
+    assert.equal(added.id, 'bm-test');
+    assert.equal(added.title, 'Linux Kernel');
+
+    const list = await client.sendCommand(IPC_COMMANDS.BOOKMARKS_LIST);
+    assert.equal(list.length, 1);
+    assert.equal(list[0].url, 'https://kernel.org');
+
+    const removeRes = await client.sendCommand(IPC_COMMANDS.BOOKMARKS_REMOVE, { id: 'bm-test' });
+    assert.equal(removeRes.removedId, 'bm-test');
+  });
+
+  it('retrieves browsing history over IPC', async () => {
+    const history = await client.sendCommand(IPC_COMMANDS.HISTORY_LIST);
+    assert.equal(history.length, 1);
+    assert.equal(history[0].url, 'https://test.local');
+  });
+
+  it('retrieves downloads activity over IPC', async () => {
+    const downloads = await client.sendCommand(IPC_COMMANDS.DOWNLOADS_LIST);
+    assert.equal(downloads.length, 1);
+    assert.equal(downloads[0].filename, 'file.tar.gz');
   });
 });

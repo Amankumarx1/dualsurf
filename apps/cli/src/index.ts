@@ -8,6 +8,9 @@ import {
   formatPageHeader,
   formatPageText,
   formatTabsList,
+  formatBookmarks,
+  formatHistory,
+  formatDownloads,
   colors,
 } from './formatters.js';
 import { IPC_COMMANDS } from '@dualsurf/ipc-protocol';
@@ -239,6 +242,86 @@ async function main() {
         break;
       }
 
+      case 'bookmarks': {
+        const bookmarks = await client.sendCommand(IPC_COMMANDS.BOOKMARKS_LIST);
+        if (isJson) {
+          console.log(JSON.stringify(bookmarks, null, 2));
+        } else {
+          console.log(formatBookmarks(bookmarks));
+        }
+        break;
+      }
+
+      case 'bookmark': {
+        const sub = rest[0]?.toLowerCase();
+        if (sub === 'add') {
+          let url = rest[1];
+          let title = rest.slice(2).join(' ');
+
+          // If no URL given, bookmark current active page
+          if (!url) {
+            const meta: PageMetadata = await client.sendCommand(IPC_COMMANDS.PAGE_GET_METADATA);
+            url = meta.url;
+            title = meta.title;
+          }
+
+          const bm = await client.sendCommand(IPC_COMMANDS.BOOKMARKS_ADD, { url, title });
+          if (isJson) {
+            console.log(JSON.stringify(bm, null, 2));
+          } else {
+            console.log(`${colors.green}Saved bookmark:${colors.reset} ${bm.title} (${bm.url})`);
+          }
+        } else if (sub === 'remove' || sub === 'rm') {
+          const id = rest[1];
+          if (!id) {
+            console.error(`${colors.red}Error: Bookmark ID required.${colors.reset} Usage: dualsurf bookmark remove <id>`);
+            process.exit(1);
+          }
+          await client.sendCommand(IPC_COMMANDS.BOOKMARKS_REMOVE, { id });
+          if (isJson) console.log(JSON.stringify({ removed: id }));
+          else console.log(`${colors.yellow}Removed bookmark: ${id}${colors.reset}`);
+        } else {
+          const bookmarks = await client.sendCommand(IPC_COMMANDS.BOOKMARKS_LIST);
+          if (isJson) console.log(JSON.stringify(bookmarks, null, 2));
+          else console.log(formatBookmarks(bookmarks));
+        }
+        break;
+      }
+
+      case 'history': {
+        const queryIndex = rest.indexOf('--search');
+        if (queryIndex !== -1 && rest[queryIndex + 1]) {
+          const query = rest[queryIndex + 1];
+          const history = await client.sendCommand(IPC_COMMANDS.HISTORY_SEARCH, { query });
+          if (isJson) console.log(JSON.stringify(history, null, 2));
+          else console.log(formatHistory(history));
+        } else {
+          const limit = rest[0] ? parseInt(rest[0], 10) : 30;
+          const history = await client.sendCommand(IPC_COMMANDS.HISTORY_LIST, { limit });
+          if (isJson) console.log(JSON.stringify(history, null, 2));
+          else console.log(formatHistory(history));
+        }
+        break;
+      }
+
+      case 'downloads':
+      case 'download': {
+        const downloads = await client.sendCommand(IPC_COMMANDS.DOWNLOADS_LIST);
+        if (isJson) {
+          console.log(JSON.stringify(downloads, null, 2));
+        } else {
+          console.log(formatDownloads(downloads));
+        }
+        break;
+      }
+
+      case 'clear-data': {
+        await client.sendCommand(IPC_COMMANDS.HISTORY_CLEAR);
+        if (isJson) console.log(JSON.stringify({ cleared: true }));
+        else console.log(`${colors.yellow}Cleared all browsing history and session data.${colors.reset}`);
+        break;
+      }
+
       default: {
         console.error(`${colors.red}Unknown command: "${command}".${colors.reset}`);
         printCliHelp();
@@ -277,6 +360,12 @@ ${colors.bold}COMMANDS:${colors.reset}
   ${colors.bold}headings${colors.reset}               List page headings in document order
   ${colors.bold}back / forward${colors.reset}         History navigation
   ${colors.bold}reload / stop${colors.reset}          Reload or stop current page
+  ${colors.bold}bookmarks${colors.reset}              List saved bookmarks
+  ${colors.bold}bookmark add [url]${colors.reset}     Save a bookmark
+  ${colors.bold}bookmark rm <id>${colors.reset}       Remove a bookmark
+  ${colors.bold}history [--search Q]${colors.reset}   Display or search browsing history
+  ${colors.bold}downloads${colors.reset}              List recent download activity
+  ${colors.bold}clear-data${colors.reset}             Clear history and cached data
   ${colors.bold}settings${colors.reset}               View browser preferences
   ${colors.bold}help${colors.reset}                   Show this help message
 

@@ -18,6 +18,7 @@
     "lint": "npm run --workspaces --if-present lint"
   },
   "devDependencies": {
+    "@types/node": "^26.6.4",
     "typescript": "^5.7.3"
   }
 }

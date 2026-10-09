@@ -59,6 +59,13 @@ export const IPC_COMMANDS = {
   NAV_STOP: 'nav.stop',
   SETTINGS_GET: 'settings.get',
   SETTINGS_UPDATE: 'settings.update',
+  BOOKMARKS_LIST: 'bookmarks.list',
+  BOOKMARKS_ADD: 'bookmarks.add',
+  BOOKMARKS_REMOVE: 'bookmarks.remove',
+  HISTORY_LIST: 'history.list',
+  HISTORY_SEARCH: 'history.search',
+  HISTORY_CLEAR: 'history.clear',
+  DOWNLOADS_LIST: 'downloads.list',
   PING: 'system.ping',
 } as const;
 

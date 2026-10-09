@@ -1,0 +1,17 @@
+{
+  "name": "@dualsurf/storage",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@dualsurf/shared-types": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

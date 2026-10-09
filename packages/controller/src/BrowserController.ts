@@ -1,12 +1,15 @@
 import { EventEmitter } from 'events';
 import type { BrowserWindow } from 'electron';
 import {
+  BookmarkEntry,
   BrowserControllerState,
   BrowserSettings,
+  HistoryEntry,
   PageMetadata,
   TabId,
   TabState,
 } from '@dualsurf/shared-types';
+import { MetadataDatabase } from '@dualsurf/storage';
 import { NavigationService } from './NavigationService.js';
 import { TabManager } from './TabManager.js';
 import { PageInspector } from './PageInspector.js';
@@ -17,12 +20,14 @@ export class BrowserController extends EventEmitter {
   private tabManager: TabManager;
   private pageInspector: PageInspector;
   private sessionStore: SessionStore;
+  private database: MetadataDatabase;
   private settings: BrowserSettings;
   private isInitialized: boolean = false;
 
-  constructor() {
+  constructor(dbOptions?: { inMemory?: boolean; dbPath?: string }) {
     super();
     this.sessionStore = new SessionStore();
+    this.database = new MetadataDatabase(dbOptions);
     const persisted = this.sessionStore.loadSession();
     this.settings = persisted.settings;
 
@@ -52,6 +57,11 @@ export class BrowserController extends EventEmitter {
     this.tabManager.on('tab:updated', (tab: TabState) => {
       this.emit('tab:updated', tab);
       this.persistSessionDebounced();
+
+      // Automatically record successful visits in SQLite history
+      if (!tab.isLoading && tab.url && !tab.url.startsWith('about:') && !tab.url.startsWith('dualsurf:')) {
+        this.database.addHistory(tab.url, tab.title || tab.url);
+      }
     });
 
     this.tabManager.on('state:changed', (state: BrowserControllerState) => {
@@ -214,5 +224,42 @@ export class BrowserController extends EventEmitter {
     this.sessionStore.saveSession(state.tabs, state.activeTabId, this.settings);
     this.emit('settings:updated', this.settings);
     return this.settings;
+  }
+
+  // --- SQLite Metadata Methods ---
+
+  public getHistory(limit?: number): HistoryEntry[] {
+    return this.database.getHistory(limit);
+  }
+
+  public searchHistory(query: string, limit?: number): HistoryEntry[] {
+    return this.database.searchHistory(query, limit);
+  }
+
+  public clearHistory(): void {
+    this.database.clearHistory();
+    this.emit('history:cleared');
+  }
+
+  public addBookmark(url: string, title?: string): BookmarkEntry {
+    const bookmark = this.database.addBookmark(url, title || url);
+    this.emit('bookmark:added', bookmark);
+    return bookmark;
+  }
+
+  public getBookmarks(): BookmarkEntry[] {
+    return this.database.getBookmarks();
+  }
+
+  public removeBookmark(id: string): boolean {
+    const removed = this.database.removeBookmark(id);
+    if (removed) {
+      this.emit('bookmark:removed', id);
+    }
+    return removed;
+  }
+
+  public getDownloads(limit?: number) {
+    return this.database.getDownloads(limit);
   }
 }

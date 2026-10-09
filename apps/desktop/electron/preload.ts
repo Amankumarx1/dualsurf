@@ -1,7 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
+  BookmarkEntry,
   BrowserControllerState,
   BrowserSettings,
+  HistoryEntry,
   PageMetadata,
   TabId,
   TabState,
@@ -22,6 +24,12 @@ export interface DualSurfAPI {
   clickNumberedLink: (tabId: TabId | undefined, linkId: number) => Promise<boolean>;
   getSettings: () => Promise<BrowserSettings>;
   updateSettings: (partial: Partial<BrowserSettings>) => Promise<BrowserSettings>;
+  getBookmarks: () => Promise<BookmarkEntry[]>;
+  addBookmark: (url: string, title?: string) => Promise<BookmarkEntry>;
+  removeBookmark: (id: string) => Promise<boolean>;
+  getHistory: (limit?: number) => Promise<HistoryEntry[]>;
+  clearHistory: () => Promise<void>;
+  getDownloads: () => Promise<any[]>;
   setTopBarHeight: (height: number) => Promise<void>;
   onStateChanged: (callback: (state: BrowserControllerState) => void) => () => void;
   onTabUpdated: (callback: (tab: TabState) => void) => () => void;
@@ -42,6 +50,12 @@ const dualsurfApi: DualSurfAPI = {
   clickNumberedLink: (tabId, linkId) => ipcRenderer.invoke('dualsurf:clickNumberedLink', tabId, linkId),
   getSettings: () => ipcRenderer.invoke('dualsurf:getSettings'),
   updateSettings: (partial) => ipcRenderer.invoke('dualsurf:updateSettings', partial),
+  getBookmarks: () => ipcRenderer.invoke('dualsurf:getBookmarks'),
+  addBookmark: (url, title) => ipcRenderer.invoke('dualsurf:addBookmark', url, title),
+  removeBookmark: (id) => ipcRenderer.invoke('dualsurf:removeBookmark', id),
+  getHistory: (limit) => ipcRenderer.invoke('dualsurf:getHistory', limit),
+  clearHistory: () => ipcRenderer.invoke('dualsurf:clearHistory'),
+  getDownloads: () => ipcRenderer.invoke('dualsurf:getDownloads'),
   setTopBarHeight: (height) => ipcRenderer.invoke('dualsurf:setTopBarHeight', height),
 
   onStateChanged: (callback) => {

@@ -349,6 +349,97 @@ export class IpcServer {
           };
         }
 
+        case IPC_COMMANDS.BOOKMARKS_LIST: {
+          const bookmarks = this.controller.getBookmarks();
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: bookmarks,
+          };
+        }
+
+        case IPC_COMMANDS.BOOKMARKS_ADD: {
+          const { url, title } = params || {};
+          if (!url) {
+            return {
+              protocolVersion: PROTOCOL_VERSION,
+              requestId,
+              success: false,
+              error: { code: 'MISSING_PARAM', message: 'URL is required for bookmark' },
+            };
+          }
+          const bookmark = this.controller.addBookmark(url, title);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: bookmark,
+          };
+        }
+
+        case IPC_COMMANDS.BOOKMARKS_REMOVE: {
+          const { id } = params || {};
+          if (!id) {
+            return {
+              protocolVersion: PROTOCOL_VERSION,
+              requestId,
+              success: false,
+              error: { code: 'MISSING_PARAM', message: 'Bookmark ID is required' },
+            };
+          }
+          const removed = this.controller.removeBookmark(id);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: removed,
+            data: { removedId: id },
+          };
+        }
+
+        case IPC_COMMANDS.HISTORY_LIST: {
+          const limit = params?.limit ? parseInt(params.limit, 10) : 50;
+          const history = this.controller.getHistory(limit);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: history,
+          };
+        }
+
+        case IPC_COMMANDS.HISTORY_SEARCH: {
+          const query = params?.query || '';
+          const history = this.controller.searchHistory(query);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: history,
+          };
+        }
+
+        case IPC_COMMANDS.HISTORY_CLEAR: {
+          this.controller.clearHistory();
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: { cleared: true },
+          };
+        }
+
+        case IPC_COMMANDS.DOWNLOADS_LIST: {
+          const limit = params?.limit ? parseInt(params.limit, 10) : 20;
+          const downloads = this.controller.getDownloads(limit);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: downloads,
+          };
+        }
+
         default: {
           return {
             protocolVersion: PROTOCOL_VERSION,

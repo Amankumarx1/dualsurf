@@ -138,6 +138,30 @@ function setupIpcHandlers(ctrl: BrowserController) {
     return ctrl.updateSettings(partial);
   });
 
+  ipcMain.handle('dualsurf:getBookmarks', () => {
+    return ctrl.getBookmarks();
+  });
+
+  ipcMain.handle('dualsurf:addBookmark', (_event, url: string, title?: string) => {
+    return ctrl.addBookmark(url, title);
+  });
+
+  ipcMain.handle('dualsurf:removeBookmark', (_event, id: string) => {
+    return ctrl.removeBookmark(id);
+  });
+
+  ipcMain.handle('dualsurf:getHistory', (_event, limit?: number) => {
+    return ctrl.getHistory(limit);
+  });
+
+  ipcMain.handle('dualsurf:clearHistory', () => {
+    return ctrl.clearHistory();
+  });
+
+  ipcMain.handle('dualsurf:getDownloads', (_event, limit?: number) => {
+    return ctrl.getDownloads(limit);
+  });
+
   ipcMain.handle('dualsurf:setTopBarHeight', (_event, height: number) => {
     topBarHeight = height;
     ctrl.setContentBounds({ y: height });

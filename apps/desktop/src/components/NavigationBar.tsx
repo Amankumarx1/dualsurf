@@ -39,12 +39,21 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
 }) => {
   const [urlInput, setUrlInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   useEffect(() => {
     if (!isFocused && activeTab) {
       setUrlInput(activeTab.url);
     }
   }, [activeTab?.url, isFocused]);
+
+  const handleBookmarkClick = async () => {
+    if (activeTab && window.dualsurf) {
+      await window.dualsurf.addBookmark(activeTab.url, activeTab.title || activeTab.url);
+      setIsBookmarked(true);
+      setTimeout(() => setIsBookmarked(false), 2000);
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -145,8 +154,12 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
             </button>
           )}
 
-          <button className="action-icon-btn" title="Bookmark this page">
-            <Bookmark size={14} />
+          <button
+            className={`action-icon-btn ${isBookmarked ? 'active' : ''}`}
+            onClick={handleBookmarkClick}
+            title={isBookmarked ? "Page bookmarked!" : "Bookmark this page"}
+          >
+            <Bookmark size={14} fill={isBookmarked ? "var(--accent-cyan)" : "none"} color={isBookmarked ? "var(--accent-cyan)" : "currentColor"} />
           </button>
         </div>
       </div>
