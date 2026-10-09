@@ -1,0 +1,32 @@
+{
+  "name": "@dualsurf/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/electron/main.js",
+  "scripts": {
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build": "npm run build:renderer && npm run build:electron",
+    "dev:renderer": "vite",
+    "dev:electron": "tsc -p tsconfig.electron.json -w",
+    "dev": "concurrently -k \"vite\" \"npm run dev:electron\" \"cross-env NODE_ENV=development electron .\"",
+    "start": "cross-env NODE_ENV=production electron ."
+  },
+  "dependencies": {
+    "@dualsurf/controller": "^0.1.0",
+    "@dualsurf/shared-types": "^0.1.0",
+    "lucide-react": "^0.475.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^34.3.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0"
+  }
+}

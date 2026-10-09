@@ -1,0 +1,21 @@
+{
+  "name": "dualsurf-monorepo",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "DualSurf: Dual-Mode Linux Browser (GUI & Terminal)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run --workspaces --if-present build",
+    "dev:desktop": "npm run dev --workspace=@dualsurf/desktop",
+    "build:desktop": "npm run build --workspace=@dualsurf/desktop",
+    "test": "node --test tests/unit/navigation.test.js tests/unit/session.test.js",
+    "lint": "npm run --workspaces --if-present lint"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
