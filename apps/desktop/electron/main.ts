@@ -1,10 +1,11 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
-import { BrowserController } from '@dualsurf/controller';
+import { BrowserController, IpcServer } from '@dualsurf/controller';
 import type { BrowserSettings, TabId } from '@dualsurf/shared-types';
 
 let mainWindow: BrowserWindow | null = null;
 let controller: BrowserController | null = null;
+let ipcServer: IpcServer | null = null;
 let topBarHeight = 84;
 
 async function createWindow() {
@@ -28,6 +29,12 @@ async function createWindow() {
   controller = new BrowserController();
   controller.attachWindow(mainWindow);
   controller.setContentBounds({ y: topBarHeight });
+
+  // Start local socket IPC Server for CLI & TUI communication
+  ipcServer = new IpcServer(controller);
+  ipcServer.start().catch((err) => {
+    console.warn('[Main] IPC Server failed to start:', err.message);
+  });
 
   // Forward controller events to GUI renderer
   controller.on('state:changed', (state) => {
@@ -65,6 +72,10 @@ async function createWindow() {
   controller.initialize(mainWindow);
 
   mainWindow.on('closed', () => {
+    if (ipcServer) {
+      ipcServer.stop();
+      ipcServer = null;
+    }
     mainWindow = null;
     controller = null;
   });

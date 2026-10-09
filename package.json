@@ -12,7 +12,9 @@
     "build": "npm run --workspaces --if-present build",
     "dev:desktop": "npm run dev --workspace=@dualsurf/desktop",
     "build:desktop": "npm run build --workspace=@dualsurf/desktop",
-    "test": "node --test tests/unit/navigation.test.js tests/unit/session.test.js",
+    "build:cli": "npm run build --workspace=@dualsurf/cli",
+    "dualsurf": "node apps/cli/dist/index.js",
+    "test": "node --test tests/unit/*.test.js",
     "lint": "npm run --workspaces --if-present lint"
   },
   "devDependencies": {
