@@ -19,6 +19,27 @@ describe('DualSurf Security Hardening Suite', () => {
     );
   });
 
+  it('rejects vbscript: pseudo-scheme in navigation', () => {
+    const malicious = 'vbscript:msgbox("hacked")';
+    const normalized = nav.normalizeUrl(malicious);
+    assert.ok(
+      normalized.startsWith('https://duckduckgo.com/?q=') || !normalized.startsWith('vbscript:'),
+      'vbscript: scheme must never be directly navigated'
+    );
+  });
+
+  it('safely rejects non-integer or malicious linkId values in clickNumberedLink', async () => {
+    // Malicious or NaN inputs must safely return null without throwing or script execution
+    const res1 = await inspector.clickNumberedLink(null, NaN);
+    assert.equal(res1, null);
+
+    const res2 = await inspector.clickNumberedLink(null, -1);
+    assert.equal(res2, null);
+
+    const res3 = await inspector.clickNumberedLink(null, 0);
+    assert.equal(res3, null);
+  });
+
   it('rejects shell metacharacters and escapes search parameters safely', () => {
     const shellInjection = 'test; rm -rf /; echo "pwned"';
     const normalized = nav.normalizeUrl(shellInjection);

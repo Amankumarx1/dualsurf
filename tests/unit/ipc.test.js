@@ -82,6 +82,13 @@ describe('DualSurf IPC Protocol & Server Integration', () => {
     async clickNumberedLink(tabId, linkId) {
       return linkId === 1;
     },
+    async findInPage(tabId, query) {
+      return {
+        query,
+        count: 1,
+        matches: [{ index: 1, snippet: `Found ${query} in mock content.` }],
+      };
+    },
     goBack() { return true; },
     goForward() { return true; },
     reload() { return true; },
@@ -109,10 +116,14 @@ describe('DualSurf IPC Protocol & Server Integration', () => {
     getDownloads() { return [{ id: 'dl-1', filename: 'file.tar.gz', path: '/tmp/file.tar.gz', status: 'completed' }]; },
   };
 
+  const testSocketPath = process.platform === 'win32'
+    ? `\\\\.\\pipe\\dualsurf-test-${Date.now()}`
+    : path.join(os.tmpdir(), `dualsurf-test-${Date.now()}.sock`);
+
   before(async () => {
-    server = new IpcServer(mockController);
+    server = new IpcServer(mockController, testSocketPath);
     await server.start();
-    client = new IpcClient();
+    client = new IpcClient(testSocketPath);
   });
 
   after(async () => {
@@ -195,5 +206,55 @@ describe('DualSurf IPC Protocol & Server Integration', () => {
     const downloads = await client.sendCommand(IPC_COMMANDS.DOWNLOADS_LIST);
     assert.equal(downloads.length, 1);
     assert.equal(downloads[0].filename, 'file.tar.gz');
+  });
+
+  it('searches in-page text occurrences with page.find', async () => {
+    const res = await client.sendCommand(IPC_COMMANDS.PAGE_FIND, { query: 'DualSurf' });
+    assert.equal(res.query, 'DualSurf');
+    assert.equal(res.count, 1);
+    assert.equal(res.matches.length, 1);
+    assert.ok(res.matches[0].snippet.includes('DualSurf'));
+  });
+
+  it('handles multiple consecutive rapid IPC requests smoothly', async () => {
+    const promises = [
+      client.sendCommand(IPC_COMMANDS.TABS_LIST),
+      client.sendCommand(IPC_COMMANDS.SETTINGS_GET),
+      client.sendCommand(IPC_COMMANDS.PAGE_GET_METADATA),
+      client.sendCommand(IPC_COMMANDS.PING),
+    ];
+    const results = await Promise.all(promises);
+    assert.equal(results.length, 4);
+    assert.equal(results[0].tabs.length, 3);
+    assert.equal(results[1].searchEngine, 'brave');
+    assert.equal(results[2].title, 'Mock Page');
+    assert.equal(results[3].pong, true);
+  });
+
+  it('rejects unknown commands with proper protocol error', async () => {
+    await assert.rejects(
+      async () => {
+        await client.sendCommand('nonexistent.command');
+      },
+      /Command "nonexistent.command" is not recognized/
+    );
+  });
+
+  it('validates required parameters and reports errors', async () => {
+    await assert.rejects(
+      async () => {
+        await client.sendCommand(IPC_COMMANDS.PAGE_NAVIGATE, {});
+      },
+      /URL parameter is required/
+    );
+  });
+
+  it('executes host command via system.exec over IPC', async () => {
+    const isWindows = process.platform === 'win32';
+    const testCmd = isWindows ? 'echo IPCExecSuccess' : 'echo "IPCExecSuccess"';
+
+    const res = await client.sendCommand(IPC_COMMANDS.SYSTEM_EXEC, { command: testCmd });
+    assert.equal(res.exitCode, 0);
+    assert.ok(res.stdout.includes('IPCExecSuccess'));
   });
 });

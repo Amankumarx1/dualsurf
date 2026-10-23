@@ -41,5 +41,6 @@ Thumbs.db
 # DualSurf runtime sockets and profiles
 *.sock
 dualsurf.sock
+.dualsurf/
 .dualsurf-profile/
 test-profile/

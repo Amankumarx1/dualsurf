@@ -242,18 +242,26 @@ export class MetadataDatabase {
       }));
   }
 
-  public clearHistory(profileId?: string): void {
+  public clearHistory(profileId?: string, sinceTimestamp?: number): void {
     if (this.sqliteDb) {
-      if (profileId) {
+      if (profileId && sinceTimestamp !== undefined && sinceTimestamp > 0) {
+        this.sqliteDb.prepare('DELETE FROM history WHERE profile_id = ? AND visited_at >= ?').run(profileId, sinceTimestamp);
+      } else if (profileId) {
         this.sqliteDb.prepare('DELETE FROM history WHERE profile_id = ?').run(profileId);
+      } else if (sinceTimestamp !== undefined && sinceTimestamp > 0) {
+        this.sqliteDb.prepare('DELETE FROM history WHERE visited_at >= ?').run(sinceTimestamp);
       } else {
         this.sqliteDb.exec('DELETE FROM history;');
       }
       return;
     }
 
-    if (profileId) {
+    if (profileId && sinceTimestamp !== undefined && sinceTimestamp > 0) {
+      this.data.history = this.data.history.filter((h) => !(h.profile_id === profileId && h.visited_at >= sinceTimestamp));
+    } else if (profileId) {
       this.data.history = this.data.history.filter((h) => h.profile_id !== profileId);
+    } else if (sinceTimestamp !== undefined && sinceTimestamp > 0) {
+      this.data.history = this.data.history.filter((h) => !(h.visited_at >= sinceTimestamp));
     } else {
       this.data.history = [];
     }
@@ -263,10 +271,21 @@ export class MetadataDatabase {
   // --- Bookmarks ---
 
   public addBookmark(url: string, title: string, folderId?: string, profileId = 'default'): BookmarkEntry {
-    const id = `bm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const now = Date.now();
 
     if (this.sqliteDb) {
+      const existing = this.sqliteDb
+        .prepare('SELECT id, created_at as createdAt FROM bookmarks WHERE url = ? AND profile_id = ?')
+        .get(url, profileId) as { id: string; createdAt: number } | undefined;
+
+      if (existing) {
+        this.sqliteDb
+          .prepare('UPDATE bookmarks SET title = ?, folder_id = ? WHERE id = ?')
+          .run(title, folderId || null, existing.id);
+        return { id: existing.id, url, title, folderId, createdAt: existing.createdAt };
+      }
+
+      const id = `bm-${now}-${Math.random().toString(36).substring(2, 6)}`;
       this.sqliteDb
         .prepare('INSERT INTO bookmarks (id, profile_id, url, title, folder_id, created_at) VALUES (?, ?, ?, ?, ?, ?)')
         .run(id, profileId, url, title, folderId || null, now);
@@ -274,6 +293,15 @@ export class MetadataDatabase {
       return { id, url, title, folderId, createdAt: now };
     }
 
+    const existing = this.data.bookmarks.find((b) => b.url === url && b.profile_id === profileId);
+    if (existing) {
+      existing.title = title;
+      if (folderId !== undefined) existing.folder_id = folderId;
+      this.persistJson();
+      return { id: existing.id, url, title, folderId: existing.folder_id || undefined, createdAt: existing.created_at };
+    }
+
+    const id = `bm-${now}-${Math.random().toString(36).substring(2, 6)}`;
     const bm = { id, profile_id: profileId, url, title, folder_id: folderId || null, created_at: now };
     this.data.bookmarks.unshift(bm);
     this.persistJson();

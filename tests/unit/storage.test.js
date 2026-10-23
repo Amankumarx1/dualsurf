@@ -63,4 +63,18 @@ describe('DualSurf SQLite MetadataDatabase', () => {
     const history = db.getHistory();
     assert.equal(history.length, 0);
   });
+
+  it('supports clearing browsing history with time range filter', () => {
+    db.addHistory('https://recent-visit.com', 'Recent Visit');
+    const historyBefore = db.getHistory();
+    assert.ok(historyBefore.length >= 1);
+
+    // Clearing with a timestamp in the future does not purge past visits
+    db.clearHistory(undefined, Date.now() + 100000);
+    assert.ok(db.getHistory().length >= 1);
+
+    // Clearing with a timestamp from 1 hour ago purges recent visits
+    db.clearHistory(undefined, Date.now() - 3600000);
+    assert.equal(db.getHistory().length, 0);
+  });
 });

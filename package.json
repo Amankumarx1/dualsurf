@@ -10,11 +10,18 @@
   ],
   "scripts": {
     "build": "npm run --workspaces --if-present build",
+    "dev": "npm run dev:desktop",
     "dev:desktop": "npm run dev --workspace=@dualsurf/desktop",
     "build:desktop": "npm run build --workspace=@dualsurf/desktop",
     "build:cli": "npm run build --workspace=@dualsurf/cli",
+    "build:exe": "npm run build && npm run pack --workspace=@dualsurf/desktop",
+    "dist:exe": "npm run build && npm run dist:portable --workspace=@dualsurf/desktop",
+    "dist:installer": "npm run build && npm run dist:installer --workspace=@dualsurf/desktop",
+    "dist:portable": "npm run build && npm run dist:portable --workspace=@dualsurf/desktop",
+    "dist:all": "npm run build && npm run dist --workspace=@dualsurf/desktop",
     "dualsurf": "node apps/cli/dist/index.js",
     "test": "node --test tests/unit/*.test.js tests/security/*.test.js",
+    "clean:ram": "powershell -ExecutionPolicy Bypass -File scripts/optimize_memory.ps1",
     "lint": "npm run --workspaces --if-present lint"
   },
   "devDependencies": {

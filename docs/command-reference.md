@@ -30,6 +30,23 @@ All commands connect to the active running DualSurf instance over the protected 
 | `dualsurf click <n>` | `<number>` | Activates the numbered link corresponding to `[n]`. | `dualsurf click 3` |
 | `dualsurf headings` | `[--json]` | Lists H1–H6 headings in document hierarchical order. | `dualsurf headings` |
 
+### Bookmarks, History & Downloads
+| Command | Arguments | Description | Example |
+| :--- | :--- | :--- | :--- |
+| `dualsurf bookmarks` | `[--json]` | Lists all saved bookmarks. | `dualsurf bookmarks` |
+| `dualsurf bookmark add` | `[url] [title]` | Saves bookmark for active page (or specified URL). | `dualsurf bookmark add` |
+| `dualsurf bookmark rm` | `<id>` | Deletes bookmark by ID. | `dualsurf bookmark rm bm-123` |
+| `dualsurf history` | `[limit] [--search Q]` | Lists recent visits or searches history with visit counts. | `dualsurf history 20` |
+| `dualsurf downloads` | `[--json]` | Lists recent download activity. | `dualsurf downloads` |
+| `dualsurf clear-data` | *(none)* | Clears stored history and cache. | `dualsurf clear-data` |
+
+### Mode Switching & Lifecycle
+| Command | Arguments | Description | Example |
+| :--- | :--- | :--- | :--- |
+| `dualsurf gui` | *(none)* | Launches or focuses the graphical Mode A browser window. | `dualsurf gui` |
+| `dualsurf shutdown` | *(none)* | Gracefully shuts down the background browser engine. | `dualsurf shutdown` |
+| `dualsurf settings` | `[--json]` | Views current browser configuration. | `dualsurf settings` |
+
 ---
 
 ## 2. Interactive Terminal Session (REPL)

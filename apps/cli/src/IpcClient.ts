@@ -13,10 +13,37 @@ export class IpcClient {
     this.socketPath = socketPath || getIpcSocketPath();
   }
 
-  public async sendCommand<T = any>(command: string, params?: any): Promise<T> {
+  public async sendCommand<T = any>(command: string, params?: any, timeoutMs = 15000): Promise<T> {
     return new Promise((resolve, reject) => {
+      let isSettled = false;
       const socket = net.createConnection(this.socketPath);
       let buffer = '';
+
+      const timer = setTimeout(() => {
+        if (!isSettled) {
+          isSettled = true;
+          socket.destroy();
+          reject(new Error(`IPC request for command "${command}" timed out after ${timeoutMs}ms`));
+        }
+      }, timeoutMs);
+
+      const cleanupAndReject = (err: Error) => {
+        if (!isSettled) {
+          isSettled = true;
+          clearTimeout(timer);
+          socket.destroy();
+          reject(err);
+        }
+      };
+
+      const cleanupAndResolve = (data: T) => {
+        if (!isSettled) {
+          isSettled = true;
+          clearTimeout(timer);
+          socket.end();
+          resolve(data);
+        }
+      };
 
       const requestId = `cli-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
       const request: IPCRequest = {
@@ -36,33 +63,36 @@ export class IpcClient {
           const line = buffer.split('\n')[0].trim();
           try {
             const response: IPCResponse<T> = JSON.parse(line);
-            socket.end();
-
             if (!response.success) {
               const err = new Error(
                 response.error?.message || `Command failed with error code: ${response.error?.code}`
               );
               (err as any).code = response.error?.code;
-              return reject(err);
+              return cleanupAndReject(err);
             }
 
-            resolve(response.data as T);
+            cleanupAndResolve(response.data as T);
           } catch (err) {
-            socket.end();
-            reject(new Error(`Failed to parse response: ${(err as Error).message}`));
+            cleanupAndReject(new Error(`Failed to parse response: ${(err as Error).message}`));
           }
         }
       });
 
       socket.on('error', (err: any) => {
         if (err.code === 'ENOENT' || err.code === 'ECONNREFUSED') {
-          reject(
+          cleanupAndReject(
             new Error(
               'Browser controller unavailable. Please start DualSurf first (run "dualsurf" to launch GUI or controller).'
             )
           );
         } else {
-          reject(new Error(`IPC Error: ${err.message}`));
+          cleanupAndReject(new Error(`IPC Error: ${err.message}`));
+        }
+      });
+
+      socket.on('close', () => {
+        if (!isSettled) {
+          cleanupAndReject(new Error('IPC socket closed before a complete response was received'));
         }
       });
     });

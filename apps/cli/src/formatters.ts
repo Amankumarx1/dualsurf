@@ -1,4 +1,10 @@
-import type { BrowserControllerState, PageMetadata } from '@dualsurf/shared-types';
+import type {
+  BrowserControllerState,
+  PageMetadata,
+  FindResult,
+  EndpointItem,
+  EndpointCategory,
+} from '@dualsurf/shared-types';
 
 export const colors = {
   reset: '\x1b[0m',
@@ -25,6 +31,23 @@ export function formatPageHeader(meta: PageMetadata): string {
   ];
   if (meta.isLoading) {
     lines.push(`${colors.yellow}Status: Loading...${colors.reset}`);
+  }
+  if (meta.endpoints && meta.endpoints.length > 0) {
+    const apiCount = meta.endpoints.filter((e) => e.category === 'api').length;
+    const authCount = meta.endpoints.filter((e) => e.category === 'auth').length;
+    const dlCount = meta.endpoints.filter((e) => e.category === 'download').length;
+    const formCount = meta.endpoints.filter((e) => e.category === 'form').length;
+
+    const summaryParts: string[] = [];
+    if (apiCount) summaryParts.push(`${apiCount} API`);
+    if (authCount) summaryParts.push(`${authCount} Auth`);
+    if (dlCount) summaryParts.push(`${dlCount} Download`);
+    if (formCount) summaryParts.push(`${formCount} Form`);
+
+    const summaryStr = summaryParts.length > 0 ? ` (${summaryParts.join(', ')})` : '';
+    lines.push(
+      `${colors.bold}Endpoints:${colors.reset} ${meta.endpoints.length} detected${summaryStr} ${colors.dim}(run "dualsurf endpoints")${colors.reset}`
+    );
   }
   return lines.join('\n');
 }
@@ -53,18 +76,96 @@ export function formatTabsList(state: BrowserControllerState): string {
   return [...header, ...rows].join('\n');
 }
 
+export function getCategoryBadge(category?: EndpointCategory, isExternal?: boolean): string {
+  switch (category) {
+    case 'api':
+      return `${colors.bold}${colors.magenta}[API]${colors.reset}`;
+    case 'auth':
+      return `${colors.bold}${colors.yellow}[AUTH]${colors.reset}`;
+    case 'download':
+      return `${colors.bold}${colors.green}[DOWNLOAD]${colors.reset}`;
+    case 'action':
+      return `${colors.bold}${colors.red}[ACTION]${colors.reset}`;
+    case 'form':
+      return `${colors.bold}${colors.blue}[FORM]${colors.reset}`;
+    case 'external':
+      return `${colors.dim}[EXT]${colors.reset}`;
+    case 'internal':
+    default:
+      return isExternal ? `${colors.dim}[EXT]${colors.reset}` : `${colors.dim}[INT]${colors.reset}`;
+  }
+}
+
 export function formatNumberedLinks(links: PageMetadata['links']): string {
   if (!links || links.length === 0) {
     return `${colors.dim}No actionable links detected on current page.${colors.reset}`;
   }
 
-  const header = `${colors.bold}${colors.cyan}Links (${links.length})${colors.reset}`;
+  const header = `${colors.bold}${colors.cyan}Actionable Links & Detected Endpoints (${links.length})${colors.reset}\n${colors.gray}─────────────────────────────────────────────────────${colors.reset}`;
   const rows = links.map((l) => {
     const num = ` [${l.id}]`.padStart(5, ' ');
-    return `${colors.cyan}${colors.bold}${num}${colors.reset} ${l.label}\n      ${colors.gray}${l.href}${colors.reset}`;
+    const badge = getCategoryBadge(l.category, l.isExternal);
+    const endpointPath = l.endpoint ? `Endpoint: ${colors.cyan}${l.endpoint}${colors.reset} -> ` : '';
+    return `${colors.cyan}${colors.bold}${num}${colors.reset} ${badge} ${colors.bold}${l.label}${colors.reset}\n      ${colors.gray}${endpointPath}${l.href}${colors.reset}`;
   });
 
   return [header, ...rows].join('\n');
+}
+
+export function formatEndpoints(
+  endpoints?: EndpointItem[],
+  filter?: string
+): string {
+  if (!endpoints || endpoints.length === 0) {
+    return `${colors.dim}No endpoints detected on active page.${colors.reset}`;
+  }
+
+  let filtered = endpoints;
+  if (filter) {
+    const f = filter.toLowerCase().replace(/^-+/, '');
+    filtered = endpoints.filter(
+      (e) =>
+        e.category.toLowerCase().includes(f) ||
+        e.path.toLowerCase().includes(f) ||
+        (e.method && e.method.toLowerCase().includes(f)) ||
+        (e.label && e.label.toLowerCase().includes(f))
+    );
+  }
+
+  const header = [
+    formatBanner(),
+    `${colors.bold}DETECTED ENDPOINTS (${filtered.length} endpoints)${colors.reset}`,
+    `${colors.gray}─────────────────────────────────────────────────────${colors.reset}`,
+  ];
+
+  if (filtered.length === 0) {
+    header.push(`${colors.dim}No endpoints matching filter "${filter}".${colors.reset}`);
+    return header.join('\n');
+  }
+
+  // Group by category
+  const categories: Record<string, EndpointItem[]> = {};
+  filtered.forEach((e) => {
+    const cat = e.category.toUpperCase();
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(e);
+  });
+
+  const sections: string[] = [...header];
+
+  for (const [catName, items] of Object.entries(categories)) {
+    sections.push(`\n${colors.bold}${colors.cyan}● ${catName} ENDPOINTS (${items.length})${colors.reset}`);
+    items.forEach((item) => {
+      const methodBadge = item.method ? `${colors.yellow}[${item.method}]${colors.reset} ` : '';
+      const extBadge = item.isExternal ? ` ${colors.dim}(external: ${item.origin})${colors.reset}` : '';
+      const labelStr = item.label ? ` ${colors.dim}— ${item.label}${colors.reset}` : '';
+      sections.push(
+        `  ${colors.cyan}${colors.bold}[${item.id}]${colors.reset} ${methodBadge}${colors.green}${item.path}${colors.reset}${extBadge}${labelStr}\n      ${colors.gray}${item.url}${colors.reset}`
+      );
+    });
+  }
+
+  return sections.join('\n');
 }
 
 export function formatHeadings(headings: PageMetadata['headings']): string {
@@ -161,6 +262,25 @@ export function formatDownloads(downloads: any[]): string {
   const rows = downloads.map((d) => {
     const size = d.totalBytes ? ` (${(d.totalBytes / (1024 * 1024)).toFixed(1)} MB)` : '';
     return `  ${colors.green}↓${colors.reset} ${colors.bold}${d.filename}${colors.reset}${size} [${d.status}]\n    ${colors.gray}${d.path}${colors.reset}`;
+  });
+
+  return [...header, ...rows].join('\n');
+}
+
+export function formatFindResults(result: FindResult): string {
+  const header = [
+    formatBanner(),
+    `${colors.bold}PAGE SEARCH FOR: "${result.query}" (${result.count} matches)${colors.reset}`,
+    `${colors.gray}─────────────────────────────────────────────────────${colors.reset}`,
+  ];
+
+  if (result.matches.length === 0) {
+    header.push(`${colors.dim}No occurrences found on the active page.${colors.reset}`);
+    return header.join('\n');
+  }
+
+  const rows = result.matches.map((m) => {
+    return `  ${colors.bold}${colors.yellow}[${m.index}]${colors.reset} ${m.snippet}`;
   });
 
   return [...header, ...rows].join('\n');

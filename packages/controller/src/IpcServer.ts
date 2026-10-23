@@ -1,5 +1,6 @@
 import * as net from 'net';
 import * as fs from 'fs';
+import { spawn } from 'child_process';
 import {
   getIpcSocketPath,
   IPCRequest,
@@ -7,16 +8,18 @@ import {
   IPC_COMMANDS,
   PROTOCOL_VERSION,
 } from '@dualsurf/ipc-protocol';
+import { EventEmitter } from 'events';
 import type { BrowserController } from './BrowserController.js';
 
-export class IpcServer {
+export class IpcServer extends EventEmitter {
   private server: net.Server | null = null;
   private socketPath: string;
   private controller: BrowserController;
 
-  constructor(controller: BrowserController) {
+  constructor(controller: BrowserController, socketPath?: string) {
+    super();
     this.controller = controller;
-    this.socketPath = getIpcSocketPath();
+    this.socketPath = socketPath || getIpcSocketPath();
   }
 
   public start(): Promise<void> {
@@ -66,9 +69,14 @@ export class IpcServer {
         });
       });
 
-      this.server.on('error', (err) => {
-        console.error('[IpcServer] Server error:', err);
-        reject(err);
+      this.server.on('error', (err: any) => {
+        if (err && err.code === 'EADDRINUSE') {
+          console.warn('[IpcServer] IPC pipe or socket already active, continuing without duplicate listener:', this.socketPath);
+          resolve();
+        } else {
+          console.error('[IpcServer] Server error:', err);
+          reject(err);
+        }
       });
 
       this.server.listen(this.socketPath, () => {
@@ -239,6 +247,46 @@ export class IpcServer {
           };
         }
 
+        case IPC_COMMANDS.TABS_MUTE: {
+          const isMuted = this.controller.toggleMuteTab(params?.tabId);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: { muted: isMuted },
+          };
+        }
+
+        case IPC_COMMANDS.TABS_SPLIT: {
+          const success = this.controller.setSplitTab(params?.tabId || null);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success,
+            data: { splitTabId: this.controller.getSplitTabId() },
+          };
+        }
+
+        case IPC_COMMANDS.PAGE_GET_READER: {
+          const article = await this.controller.getReaderArticle(params?.tabId);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: !!article,
+            data: article,
+          };
+        }
+
+        case IPC_COMMANDS.PAGE_GET_SECURITY_INFO: {
+          const sec = await this.controller.getPageSecurityInfo(params?.tabId);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: !!sec,
+            data: sec,
+          };
+        }
+
         case IPC_COMMANDS.PAGE_NAVIGATE: {
           const { url, tabId } = params || {};
           if (!url) {
@@ -289,22 +337,64 @@ export class IpcServer {
           };
         }
 
-        case IPC_COMMANDS.NAV_BACK: {
-          const success = this.controller.goBack(params?.tabId);
+        case IPC_COMMANDS.PAGE_FIND: {
+          const { query, tabId } = params || {};
+          if (!query || typeof query !== 'string') {
+            return {
+              protocolVersion: PROTOCOL_VERSION,
+              requestId,
+              success: false,
+              error: { code: 'MISSING_PARAM', message: 'Query string is required for page.find' },
+            };
+          }
+
+          const result = await this.controller.findInPage(tabId, query);
           return {
             protocolVersion: PROTOCOL_VERSION,
             requestId,
-            success,
+            success: true,
+            data: result,
+          };
+        }
+
+        case IPC_COMMANDS.NAV_BACK: {
+          const success = this.controller.goBack(params?.tabId);
+          if (!success) {
+            return {
+              protocolVersion: PROTOCOL_VERSION,
+              requestId,
+              success: false,
+              error: {
+                code: 'CANNOT_GO_BACK',
+                message: 'Cannot navigate back: no previous history in active tab',
+              },
+            };
+          }
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
             data: { action: 'goBack' },
           };
         }
 
         case IPC_COMMANDS.NAV_FORWARD: {
           const success = this.controller.goForward(params?.tabId);
+          if (!success) {
+            return {
+              protocolVersion: PROTOCOL_VERSION,
+              requestId,
+              success: false,
+              error: {
+                code: 'CANNOT_GO_FORWARD',
+                message: 'Cannot navigate forward: no forward history in active tab',
+              },
+            };
+          }
           return {
             protocolVersion: PROTOCOL_VERSION,
             requestId,
-            success,
+            success: true,
             data: { action: 'goForward' },
           };
         }
@@ -437,6 +527,181 @@ export class IpcServer {
             requestId,
             success: true,
             data: downloads,
+          };
+        }
+
+        case IPC_COMMANDS.SYSTEM_SHOW_GUI: {
+          this.emit('system:show-gui');
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: { message: 'Graphical window requested' },
+          };
+        }
+
+        case IPC_COMMANDS.SYSTEM_QUIT: {
+          this.emit('system:quit');
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: { message: 'DualSurf shutdown initiated' },
+          };
+        }
+
+        case IPC_COMMANDS.SYSTEM_EXEC: {
+          const cmd = params?.command;
+          if (!cmd) {
+            return {
+              protocolVersion: PROTOCOL_VERSION,
+              requestId,
+              success: false,
+              error: {
+                code: 'INVALID_PARAMS',
+                message: 'Missing "command" parameter',
+              },
+            };
+          }
+          const isWindows = process.platform === 'win32';
+          const shell = isWindows ? (process.env.COMSPEC || 'cmd.exe') : (process.env.SHELL || '/bin/sh');
+          const shellArgs = isWindows ? ['/d', '/s', '/c', cmd] : ['-c', cmd];
+          const timeoutMs = params?.timeoutMs ? parseInt(params.timeoutMs, 10) : 15000;
+
+          const result = await new Promise<{ stdout: string; stderr: string; exitCode: number }>((resolve) => {
+            let stdout = '';
+            let stderr = '';
+            const child = spawn(shell, shellArgs, {
+              cwd: params?.cwd || process.cwd(),
+              env: { ...process.env, PAGER: 'cat' },
+              stdio: ['ignore', 'pipe', 'pipe'],
+            });
+
+            const timer = setTimeout(() => {
+              child.kill('SIGTERM');
+            }, timeoutMs);
+
+            child.stdout?.on('data', (d) => {
+              stdout += d.toString();
+            });
+            child.stderr?.on('data', (d) => {
+              stderr += d.toString();
+            });
+            child.on('close', (code) => {
+              clearTimeout(timer);
+              resolve({ stdout, stderr, exitCode: code ?? 0 });
+            });
+            child.on('error', (err) => {
+              clearTimeout(timer);
+              resolve({ stdout, stderr: err.message, exitCode: 1 });
+            });
+          });
+
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: result.exitCode === 0,
+            data: result,
+          };
+        }
+
+        case IPC_COMMANDS.PROXY_GET_STATUS: {
+          const status = this.controller.getLocalProxyStatus();
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: status,
+          };
+        }
+
+        case IPC_COMMANDS.PROXY_GET_RULES: {
+          const rules = this.controller.getInterceptRules();
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: rules,
+          };
+        }
+
+        case IPC_COMMANDS.PROXY_SET_RULES: {
+          this.controller.setInterceptRules(params?.rules || []);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: { updated: true },
+          };
+        }
+
+        case IPC_COMMANDS.PROXY_TOGGLE_BREAKPOINT: {
+          const active = this.controller.toggleBreakpoint(params?.active);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: { isBreakpointActive: active },
+          };
+        }
+
+        case IPC_COMMANDS.PROXY_GET_PENDING: {
+          const pending = this.controller.getPendingIntercepts();
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: pending,
+          };
+        }
+
+        case IPC_COMMANDS.PROXY_FORWARD: {
+          const ok = this.controller.forwardIntercept(params?.id, params?.modifiedHeaders);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: ok,
+            data: { forwarded: ok },
+          };
+        }
+
+        case IPC_COMMANDS.PROXY_DROP: {
+          const ok = this.controller.dropIntercept(params?.id);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: ok,
+            data: { dropped: ok },
+          };
+        }
+
+        case IPC_COMMANDS.PROXY_START: {
+          const res = await this.controller.startLocalProxy(params?.port, params?.host);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: res.success,
+            data: res,
+          };
+        }
+
+        case IPC_COMMANDS.PROXY_STOP: {
+          await this.controller.stopLocalProxy();
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: { stopped: true },
+          };
+        }
+
+        case IPC_COMMANDS.REPEATER_SEND: {
+          const res = await this.controller.sendRawRequest(params || { url: '', method: 'GET', headers: {} });
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: res.success,
+            data: res,
           };
         }
 

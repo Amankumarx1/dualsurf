@@ -4,3 +4,6 @@ export * from './TabManager.js';
 export * from './PageInspector.js';
 export * from './SessionStore.js';
 export * from './IpcServer.js';
+export * from './CyberShield.js';
+export * from './TrafficSniffer.js';
+export * from './InterceptProxyEngine.js';

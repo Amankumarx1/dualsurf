@@ -1,6 +1,8 @@
 {
   "name": "@dualsurf/desktop",
   "version": "0.1.0",
+  "description": "DualSurf: Dual-Mode Cyber Browser (GUI & Terminal)",
+  "author": "DualSurf",
   "private": true,
   "main": "./dist/electron/main.js",
   "scripts": {
@@ -10,11 +12,101 @@
     "dev:renderer": "vite",
     "dev:electron": "tsc -p tsconfig.electron.json -w",
     "dev": "concurrently -k \"vite\" \"npm run dev:electron\" \"cross-env NODE_ENV=development electron .\"",
-    "start": "cross-env NODE_ENV=production electron ."
+    "start": "cross-env NODE_ENV=production electron .",
+    "pack": "electron-builder --dir",
+    "dist:portable": "electron-builder --win portable",
+    "dist:installer": "electron-builder --win nsis",
+    "dist": "electron-builder --win nsis portable dir"
+  },
+  "build": {
+    "appId": "com.dualsurf.browser",
+    "productName": "DualSurf",
+    "copyright": "Copyright © 2026 DualSurf Team",
+    "electronVersion": "34.5.8",
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist/executable",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      {
+        "from": "../../packages/controller/dist",
+        "to": "node_modules/@dualsurf/controller/dist"
+      },
+      {
+        "from": "../../packages/controller/package.json",
+        "to": "node_modules/@dualsurf/controller/package.json"
+      },
+      {
+        "from": "../../packages/shared-types/dist",
+        "to": "node_modules/@dualsurf/shared-types/dist"
+      },
+      {
+        "from": "../../packages/shared-types/package.json",
+        "to": "node_modules/@dualsurf/shared-types/package.json"
+      },
+      {
+        "from": "../../packages/storage/dist",
+        "to": "node_modules/@dualsurf/storage/dist"
+      },
+      {
+        "from": "../../packages/storage/package.json",
+        "to": "node_modules/@dualsurf/storage/package.json"
+      },
+      {
+        "from": "../../packages/ipc-protocol/dist",
+        "to": "node_modules/@dualsurf/ipc-protocol/dist"
+      },
+      {
+        "from": "../../packages/ipc-protocol/package.json",
+        "to": "node_modules/@dualsurf/ipc-protocol/package.json"
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "../cli/dist/tools",
+        "to": "cli-tools"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable",
+        "dir"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "DualSurf",
+      "uninstallDisplayName": "DualSurf",
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "DualSurf-Portable-${version}.exe"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network;Security",
+      "icon": "build/icon.png",
+      "synopsis": "Dual-Mode Cyber Security Browser",
+      "description": "DualSurf: Dual-Mode Cyber Browser and Security Orchestration Platform"
+    }
   },
   "dependencies": {
     "@dualsurf/controller": "^0.1.0",
     "@dualsurf/shared-types": "^0.1.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "lucide-react": "^0.475.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -25,8 +117,12 @@
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
-    "electron": "^34.3.0",
+    "electron": "34.5.8",
+    "electron-builder": "^26.15.3",
     "typescript": "^5.7.3",
     "vite": "^6.1.0"
+  },
+  "optionalDependencies": {
+    "node-pty": "^1.1.0"
   }
 }

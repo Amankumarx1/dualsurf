@@ -65,4 +65,52 @@ describe('NavigationService URL Normalization', () => {
       'https://search.brave.com/search?q=arch%20linux%20tui'
     );
   });
+
+  it('handles offline file schemes and local paths', () => {
+    assert.equal(
+      service.normalizeUrl('file:///var/www/html/index.html'),
+      'file:///var/www/html/index.html'
+    );
+    const local = service.normalizeUrl('./test.html');
+    assert.ok(local.startsWith('file://'));
+    assert.ok(local.includes('test.html'));
+  });
+
+  it('normalizes private intranet and local lab subnets directly without search engine', () => {
+    assert.equal(
+      service.normalizeUrl('192.168.1.1:8080/admin'),
+      'http://192.168.1.1:8080/admin'
+    );
+    assert.equal(
+      service.normalizeUrl('10.0.0.5:9000/api'),
+      'http://10.0.0.5:9000/api'
+    );
+    assert.equal(
+      service.normalizeUrl('0.0.0.0:5000'),
+      'http://0.0.0.0:5000'
+    );
+  });
+
+  it('supports DuckDuckGo-style bang shortcuts', () => {
+    assert.equal(
+      service.normalizeUrl('!gh dualsurf'),
+      'https://github.com/search?q=dualsurf'
+    );
+    assert.equal(
+      service.normalizeUrl('!w linux kernel'),
+      'https://en.wikipedia.org/wiki/Special:Search?search=linux%20kernel'
+    );
+    assert.equal(
+      service.normalizeUrl('!yt defcon presentations'),
+      'https://www.youtube.com/results?search_query=defcon%20presentations'
+    );
+    assert.equal(
+      service.normalizeUrl('!cve log4j'),
+      'https://cve.mitre.org/cgi-bin/cvekey.cgi?keyword=log4j'
+    );
+    assert.equal(
+      service.normalizeUrl('!shodan apache'),
+      'https://www.shodan.io/search?query=apache'
+    );
+  });
 });
