@@ -11,7 +11,9 @@
     "watch": "tsc -w"
   },
   "dependencies": {
+    "@dualsurf/core": "^0.1.0",
     "@dualsurf/ipc-protocol": "^0.1.0",
+    "@dualsurf/plugin-blue-soc": "^0.1.0",
     "@dualsurf/shared-types": "^0.1.0"
   },
   "devDependencies": {

@@ -6,7 +6,8 @@
   "description": "DualSurf: Dual-Mode Linux Browser (GUI & Terminal)",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "plugins/*"
   ],
   "scripts": {
     "build": "npm run --workspaces --if-present build",
