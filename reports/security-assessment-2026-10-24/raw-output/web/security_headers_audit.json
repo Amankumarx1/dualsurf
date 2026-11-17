@@ -1,0 +1,68 @@
+{
+  "targetUrl": "https://www.amankumarx1.xyz/",
+  "inspectedAt": "2026-10-24T19:32:43.000Z",
+  "httpStatus": 200,
+  "serverBanner": "Vercel",
+  "securityHeaders": {
+    "Strict-Transport-Security": {
+      "status": "PASS",
+      "value": "max-age=63072000; includeSubDomains; preload",
+      "severity": "INFORMATIONAL",
+      "notes": "HSTS is properly configured with a 2-year duration, includeSubDomains flag, and preload readiness."
+    },
+    "X-Frame-Options": {
+      "status": "PASS",
+      "value": "DENY",
+      "severity": "INFORMATIONAL",
+      "notes": "Clickjacking defense is enabled by completely prohibiting framing."
+    },
+    "X-Content-Type-Options": {
+      "status": "PASS",
+      "value": "nosniff",
+      "severity": "INFORMATIONAL",
+      "notes": "MIME sniffing prevention is properly enforced."
+    },
+    "Referrer-Policy": {
+      "status": "PASS",
+      "value": "strict-origin-when-cross-origin",
+      "severity": "INFORMATIONAL",
+      "notes": "Referrer leakage is restricted across origins."
+    },
+    "Permissions-Policy": {
+      "status": "PASS",
+      "value": "camera=(), microphone=(), geolocation=(), payment=()",
+      "severity": "INFORMATIONAL",
+      "notes": "Sensitive browser APIs (camera, mic, geolocation, payment) are restricted."
+    },
+    "Content-Security-Policy": {
+      "status": "FAIL",
+      "value": null,
+      "severity": "MEDIUM",
+      "cvssScore": 5.4,
+      "findingId": "SEC-WEB-001",
+      "notes": "Content-Security-Policy header is absent. Without CSP, the application lacks defense-in-depth against client-side script injection and malicious inline script execution."
+    },
+    "Access-Control-Allow-Origin": {
+      "status": "WARN",
+      "value": "*",
+      "severity": "LOW",
+      "cvssScore": 3.7,
+      "findingId": "SEC-WEB-003",
+      "notes": "Wildcard CORS origin is returned on the root HTML response. While standard for static public sites without credentials, defining specific permitted origins or avoiding CORS on document roots is recommended."
+    },
+    "Server": {
+      "status": "WARN",
+      "value": "Vercel",
+      "severity": "LOW",
+      "cvssScore": 2.6,
+      "findingId": "SEC-WEB-002",
+      "notes": "Server header discloses the edge infrastructure software name (Vercel)."
+    },
+    "X-XSS-Protection": {
+      "status": "LEGACY",
+      "value": "1; mode=block",
+      "severity": "INFORMATIONAL",
+      "notes": "Legacy header present. Modern browsers prioritize CSP over X-XSS-Protection."
+    }
+  }
+}

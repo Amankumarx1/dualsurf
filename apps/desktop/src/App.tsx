@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { ExternalLink, Shield, Send, Database } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { TitleBar } from './components/TitleBar';
 import { TabBar } from './components/TabBar';
 import { NavigationBar } from './components/NavigationBar';
@@ -13,37 +13,19 @@ import { FindInPageBar } from './components/FindInPageBar';
 import { HistoryModal } from './components/HistoryModal';
 import { BookmarksModal } from './components/BookmarksModal';
 import { DownloadsModal } from './components/DownloadsModal';
-import { AppMatrixModal } from './components/AppMatrixModal';
+
 import { PageMetadataDrawer } from './components/PageMetadataDrawer';
 import { TabSearchModal } from './components/TabSearchModal';
 import { ClearBrowsingDataModal } from './components/ClearBrowsingDataModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { ReaderModeModal } from './components/ReaderModeModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
-import { OllamaSetupModal } from './components/OllamaSetupModal';
-import { AiCopilotSidebar } from './components/AiCopilotSidebar';
-import { CyberShieldDropdown } from './components/CyberShieldDropdown';
-import { TrafficSnifferModal } from './components/TrafficSnifferModal';
-import { ProxySwitcherModal } from './components/ProxySwitcherModal';
-import { CookieEditorModal } from './components/CookieEditorModal';
-import { UserAgentModal } from './components/UserAgentModal';
-import { AttackSurfaceGraphModal } from './components/AttackSurfaceGraphModal';
-import { CyberToolsModal } from './components/CyberToolsModal';
-import { HttpRepeaterModal } from './components/HttpRepeaterModal';
-import { PrivacyAuditModal } from './components/PrivacyAuditModal';
-import { RedTeamWorkspace } from './components/security/RedTeamWorkspace';
-import { BlueTeamWorkspace } from './components/security/BlueTeamWorkspace';
-import { PurpleTeamWorkspace } from './components/security/PurpleTeamWorkspace';
-import { WorkspaceAccessModal } from './components/terminal/WorkspaceAccessModal';
 import type {
   TabState,
   BrowserControllerState,
   ActiveSessionState,
   BrowserSettings,
   WorkspaceGroup,
-  PageMetadata,
-  ProxyConfig,
-  RawHttpRequest,
 } from '@dualsurf/shared-types';
 
 export const App: React.FC = () => {
@@ -57,10 +39,10 @@ export const App: React.FC = () => {
 
   // Modals & Floating Overlays
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsCategory, setSettingsCategory] = useState<'general' | 'appearance' | 'browser' | 'privacy' | 'terminal' | 'shortcuts' | 'about'>('general');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [isDownloadsOpen, setIsDownloadsOpen] = useState(false);
-  const [isAppMatrixOpen, setIsAppMatrixOpen] = useState(false);
   const [isFindOpen, setIsFindOpen] = useState(false);
   const [isMetadataDrawerOpen, setIsMetadataDrawerOpen] = useState(false);
   const [isTabSearchOpen, setIsTabSearchOpen] = useState(false);
@@ -68,27 +50,10 @@ export const App: React.FC = () => {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isReaderModeOpen, setIsReaderModeOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [isOllamaSetupOpen, setIsOllamaSetupOpen] = useState(false);
-  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
-  const [isTrafficSnifferOpen, setIsTrafficSnifferOpen] = useState(false);
-  const [isShieldDropdownOpen, setIsShieldDropdownOpen] = useState(false);
-  const [isProxyModalOpen, setIsProxyModalOpen] = useState(false);
-  const [isCookieModalOpen, setIsCookieModalOpen] = useState(false);
-  const [isUserAgentModalOpen, setIsUserAgentModalOpen] = useState(false);
-  const [isAttackSurfaceModalOpen, setIsAttackSurfaceModalOpen] = useState(false);
-  const [isCyberToolsModalOpen, setIsCyberToolsModalOpen] = useState(false);
-  const [isRepeaterOpen, setIsRepeaterOpen] = useState(false);
-  const [repeaterInitialReq, setRepeaterInitialReq] = useState<RawHttpRequest | null>(null);
-  const [isPrivacyAuditOpen, setIsPrivacyAuditOpen] = useState(false);
-  const [isWorkspaceAccessOpen, setIsWorkspaceAccessOpen] = useState(false);
-  const [workspaceDir, setWorkspaceDir] = useState<string>('');
-  const [pageMetadata, setPageMetadata] = useState<PageMetadata | null>(null);
   const [pageSnapshot, setPageSnapshot] = useState<string | null>(null);
-  const [activeProxyConfig, setActiveProxyConfig] = useState<ProxyConfig>({ mode: 'direct' });
   const [activeWorkspaceId, setActiveWorkspaceId] = useState('default');
   const [workspaces, setWorkspaces] = useState<WorkspaceGroup[]>([
     { id: 'default', name: 'General', color: '#ffffff', tabIds: [] },
-    { id: 'recon', name: 'Recon & Security', color: '#ff0055', tabIds: [] },
     { id: 'dev', name: 'Development', color: '#00ff88', tabIds: [] },
   ]);
   const [settings, setSettings] = useState<BrowserSettings | null>(null);
@@ -108,10 +73,16 @@ export const App: React.FC = () => {
   }, [theme]);
 
   const handleToggleTheme = () => {
+    document.documentElement.classList.add('ds-theme-transitioning');
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    setTimeout(() => {
+      document.documentElement.classList.remove('ds-theme-transitioning');
+    }, 220);
   };
 
-  const headerRef = useRef<HTMLDivElement>(null);
+  const titleBarRef = useRef<HTMLDivElement>(null);
+  const navHeaderRef = useRef<HTMLDivElement>(null);
+  const mainViewportRef = useRef<HTMLElement>(null);
 
   // Synchronize with Electron main process / Shared Controller
   useEffect(() => {
@@ -127,34 +98,14 @@ export const App: React.FC = () => {
       setSplitTabId(state.splitTabId ?? null);
     });
 
-    // Check if Kali workspace directory access has been granted
-    if (window.dualsurf.getWorkspaceSandboxDir) {
-      window.dualsurf.getWorkspaceSandboxDir().then((res) => {
-        if (res?.path) setWorkspaceDir(res.path);
-        if (!res?.hasGranted) {
-          setIsWorkspaceAccessOpen(true);
-        }
-      }).catch(() => {});
-    }
-
-    // Check if Ollama setup onboarding has been completed and sync settings
+    // Sync settings
     window.dualsurf.getSettings().then((s: BrowserSettings) => {
       setSettings(s);
-      if (s.workspaceSandboxDir) {
-        setWorkspaceDir(s.workspaceSandboxDir);
-      }
-      if (s.proxy) {
-        setActiveProxyConfig(s.proxy);
-      }
       if (s.workspaces && s.workspaces.length > 0) {
         setWorkspaces(s.workspaces);
       }
       if (s.activeWorkspaceId) {
         setActiveWorkspaceId(s.activeWorkspaceId);
-      }
-      const onboarded = s.ollama?.onboardingCompleted || localStorage.getItem('dualsurf_ollama_onboarded') === 'true';
-      if (!onboarded) {
-        setIsOllamaSetupOpen(true);
       }
     }).catch(() => { });
 
@@ -185,46 +136,18 @@ export const App: React.FC = () => {
   }, []);
 
   // Synchronize modal state with Electron WebContentsView visibility
-  // Whenever any modal/overlay is open, hide the native WebContentsView so the modal renders in full glory on top!
   const isAnyModalOpen = Boolean(
     isSettingsOpen ||
     isHistoryOpen ||
     isBookmarksOpen ||
     isDownloadsOpen ||
-    isAppMatrixOpen ||
     isTabSearchOpen ||
     isClearDataOpen ||
     isShortcutsOpen ||
     isReaderModeOpen ||
     isCommandPaletteOpen ||
-    isOllamaSetupOpen ||
-    isCopilotOpen ||
-    isTrafficSnifferOpen ||
-    isShieldDropdownOpen ||
-    isProxyModalOpen ||
-    isCookieModalOpen ||
-    isUserAgentModalOpen ||
-    isAttackSurfaceModalOpen ||
-    isCyberToolsModalOpen ||
-    isRepeaterOpen ||
-    isPrivacyAuditOpen ||
-    isMetadataDrawerOpen ||
-    isWorkspaceAccessOpen
+    isMetadataDrawerOpen
   );
-
-  const handleGrantWorkspaceAccess = async (selectedPath: string) => {
-    if (window.dualsurf?.setWorkspaceSandboxDir) {
-      const res = await window.dualsurf.setWorkspaceSandboxDir(selectedPath);
-      if (res?.success) {
-        setWorkspaceDir(res.path);
-        setSettings((prev) => prev ? { ...prev, workspaceSandboxDir: res.path, hasGrantedWorkspaceAccess: true } : null);
-      }
-    } else {
-      setWorkspaceDir(selectedPath);
-      localStorage.setItem('dualsurf_workspace_granted', 'true');
-    }
-    setIsWorkspaceAccessOpen(false);
-  };
 
   useEffect(() => {
     if (window.dualsurf?.setViewsVisible) {
@@ -286,19 +209,67 @@ export const App: React.FC = () => {
     }
   };
 
-  // Update top bar layout height for WebContentsView positioning
+  // Update top bar layout height and content bounds for WebContentsView positioning
   const updateLayoutBounds = () => {
-    if (headerRef.current && window.dualsurf) {
-      const height = headerRef.current.offsetHeight;
-      window.dualsurf.setTopBarHeight(height);
+    if (window.dualsurf) {
+      const titleHeight = titleBarRef.current?.offsetHeight || 38;
+      const navHeight = navHeaderRef.current?.offsetHeight || 76;
+      let totalTopHeight = titleHeight + navHeight;
+      let sidebarWidth = isSidebarCollapsed ? 54 : 210;
+      let availableWidth = Math.max(window.innerWidth - sidebarWidth, 100);
+      let availableHeight = Math.max(window.innerHeight - totalTopHeight, 100);
+
+      if (mainViewportRef.current) {
+        const rect = mainViewportRef.current.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          sidebarWidth = Math.round(rect.left);
+          totalTopHeight = Math.round(rect.top);
+          const maxAvail = Math.max(window.innerWidth - sidebarWidth, 100);
+          availableWidth = Math.max(100, Math.min(Math.round(rect.width), maxAvail));
+          availableHeight = Math.max(Math.round(rect.height), 100);
+        }
+      }
+
+      window.dualsurf.setContentBounds?.({
+        x: sidebarWidth,
+        y: totalTopHeight,
+        width: availableWidth,
+        height: availableHeight,
+      });
     }
   };
 
   useEffect(() => {
     updateLayoutBounds();
     window.addEventListener('resize', updateLayoutBounds);
-    return () => window.removeEventListener('resize', updateLayoutBounds);
-  }, [tabs.length]);
+
+    const unsubMax = window.dualsurf?.onMaximizedChange?.(() => {
+      updateLayoutBounds();
+      setTimeout(updateLayoutBounds, 50);
+      setTimeout(updateLayoutBounds, 150);
+    });
+
+    const unsubResized = window.dualsurf?.onWindowResized?.(() => {
+      updateLayoutBounds();
+      setTimeout(updateLayoutBounds, 50);
+      setTimeout(updateLayoutBounds, 150);
+    });
+
+    let observer: ResizeObserver | null = null;
+    if (mainViewportRef.current && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        updateLayoutBounds();
+      });
+      observer.observe(mainViewportRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateLayoutBounds);
+      unsubMax?.();
+      unsubResized?.();
+      observer?.disconnect();
+    };
+  }, [tabs.length, isSidebarCollapsed, mode, activeSection]);
 
   // Handle Mode Switching: tell Electron main process to show/hide WebContentsView
   const handleModeChange = (newMode: 'gui' | 'terminal') => {
@@ -341,6 +312,15 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleOpenSettings = (cat: 'general' | 'appearance' | 'browser' | 'privacy' | 'terminal' | 'shortcuts' | 'about' = 'general') => {
+    setSettingsCategory(cat);
+    setIsSettingsOpen(true);
+  };
+
+  const handleOpenAbout = () => {
+    handleOpenSettings('about');
+  };
+
   const handleNavigate = (url: string) => {
     if (window.dualsurf) window.dualsurf.navigate(activeTabId || undefined, url);
   };
@@ -365,33 +345,12 @@ export const App: React.FC = () => {
     if (window.dualsurf) window.dualsurf.clickNumberedLink(activeTabId || undefined, linkId);
   };
 
-  const handleOpenAttackSurface = async () => {
-    if (window.dualsurf && activeTabId) {
-      try {
-        const meta = await window.dualsurf.getPageMetadata(activeTabId);
-        setPageMetadata(meta);
-      } catch { }
-    }
-    setIsAttackSurfaceModalOpen(true);
-  };
-
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!window.dualsurf) return;
 
       if (e.key === 'Escape') {
-        if (isRepeaterOpen) setIsRepeaterOpen(false);
-        if (isPrivacyAuditOpen) setIsPrivacyAuditOpen(false);
-        if (isProxyModalOpen) setIsProxyModalOpen(false);
-        if (isCookieModalOpen) setIsCookieModalOpen(false);
-        if (isUserAgentModalOpen) setIsUserAgentModalOpen(false);
-        if (isAttackSurfaceModalOpen) setIsAttackSurfaceModalOpen(false);
-        if (isCyberToolsModalOpen) setIsCyberToolsModalOpen(false);
-        if (isCopilotOpen) setIsCopilotOpen(false);
-        if (isTrafficSnifferOpen) setIsTrafficSnifferOpen(false);
-        if (isShieldDropdownOpen) setIsShieldDropdownOpen(false);
-        if (isOllamaSetupOpen) setIsOllamaSetupOpen(false);
         if (isCommandPaletteOpen) setIsCommandPaletteOpen(false);
         if (isReaderModeOpen) setIsReaderModeOpen(false);
         if (isFindOpen) setIsFindOpen(false);
@@ -402,7 +361,6 @@ export const App: React.FC = () => {
         if (isHistoryOpen) setIsHistoryOpen(false);
         if (isBookmarksOpen) setIsBookmarksOpen(false);
         if (isDownloadsOpen) setIsDownloadsOpen(false);
-        if (isAppMatrixOpen) setIsAppMatrixOpen(false);
         if (isSettingsOpen) setIsSettingsOpen(false);
         return;
       }
@@ -418,24 +376,6 @@ export const App: React.FC = () => {
       } else if (isCtrlOrMeta && e.shiftKey && e.key.toLowerCase() === 'r') {
         e.preventDefault();
         setIsReaderModeOpen((prev) => !prev);
-      } else if (isCtrlOrMeta && e.shiftKey && e.key.toLowerCase() === 'p') {
-        e.preventDefault();
-        setIsProxyModalOpen((prev) => !prev);
-      } else if (isCtrlOrMeta && e.shiftKey && e.key.toLowerCase() === 'c') {
-        e.preventDefault();
-        setIsCookieModalOpen((prev) => !prev);
-      } else if (isCtrlOrMeta && e.shiftKey && e.key.toLowerCase() === 'u') {
-        e.preventDefault();
-        setIsUserAgentModalOpen((prev) => !prev);
-      } else if (isCtrlOrMeta && e.shiftKey && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setIsCyberToolsModalOpen((prev) => !prev);
-      } else if (isCtrlOrMeta && e.shiftKey && e.key.toLowerCase() === 'e') {
-        e.preventDefault();
-        setIsRepeaterOpen((prev) => !prev);
-      } else if (isCtrlOrMeta && e.shiftKey && e.key.toLowerCase() === 'l') {
-        e.preventDefault();
-        setIsPrivacyAuditOpen((prev) => !prev);
       } else if ((isCtrlOrMeta && e.key.toLowerCase() === 'l' && !e.shiftKey) || (e.altKey && e.key.toLowerCase() === 'd')) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent('dualsurf:focus-address-bar'));
@@ -515,18 +455,36 @@ export const App: React.FC = () => {
       } else if (e.key === 'F12') {
         e.preventDefault();
         if (activeTabId) window.dualsurf.toggleDevTools(activeTabId);
-      } else if (e.ctrlKey && e.key.toLowerCase() === 'j') {
+      } else if (isCtrlOrMeta && (e.key === '=' || e.key === '+')) {
         e.preventDefault();
-        setIsCopilotOpen((prev) => !prev);
-      } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 't') {
+        if (activeTabId && window.dualsurf?.setZoom && window.dualsurf?.getZoom) {
+          window.dualsurf.getZoom(activeTabId).then((curr: number) => {
+            const next = Math.min(3.0, Math.round(((curr || 1.0) + 0.1) * 10) / 10);
+            window.dualsurf.setZoom(activeTabId, next);
+          }).catch(() => {});
+        }
+      } else if (isCtrlOrMeta && (e.key === '-' || e.key === '_')) {
         e.preventDefault();
-        setIsTrafficSnifferOpen((prev) => !prev);
+        if (activeTabId && window.dualsurf?.setZoom && window.dualsurf?.getZoom) {
+          window.dualsurf.getZoom(activeTabId).then((curr: number) => {
+            const next = Math.max(0.5, Math.round(((curr || 1.0) - 0.1) * 10) / 10);
+            window.dualsurf.setZoom(activeTabId, next);
+          }).catch(() => {});
+        }
+      } else if (isCtrlOrMeta && e.key === '0') {
+        e.preventDefault();
+        if (activeTabId && window.dualsurf?.setZoom) {
+          window.dualsurf.setZoom(activeTabId, 1.0).catch(() => {});
+        }
+      } else if ((isCtrlOrMeta && e.key === '[') || (e.altKey && e.key.toLowerCase() === 's')) {
+        e.preventDefault();
+        setIsSidebarCollapsed((prev) => !prev);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAnyModalOpen, activeTabId, mode, splitTabId, tabs, isFindOpen, isMetadataDrawerOpen, isTabSearchOpen, isClearDataOpen, isShortcutsOpen, isHistoryOpen, isBookmarksOpen, isDownloadsOpen, isAppMatrixOpen, isSettingsOpen, isReaderModeOpen, isCommandPaletteOpen, isOllamaSetupOpen, isCopilotOpen, isTrafficSnifferOpen, isShieldDropdownOpen, isProxyModalOpen, isCookieModalOpen, isUserAgentModalOpen, isAttackSurfaceModalOpen, isCyberToolsModalOpen, isRepeaterOpen, isPrivacyAuditOpen]);
+  }, [isAnyModalOpen, activeTabId, mode, splitTabId, tabs, isFindOpen, isMetadataDrawerOpen, isTabSearchOpen, isClearDataOpen, isShortcutsOpen, isHistoryOpen, isBookmarksOpen, isDownloadsOpen, isSettingsOpen, isReaderModeOpen, isCommandPaletteOpen]);
 
   const activeTab = tabs.find((t) => t.id === activeTabId) || null;
 
@@ -567,16 +525,15 @@ export const App: React.FC = () => {
 
   return (
     <div className="dualsurf-app-shell">
-      {/* Top Application Chrome Header */}
-      <header className="dualsurf-header-chrome" ref={headerRef}>
+      {/* 1. Full-width Top Desktop Application TitleBar Header */}
+      <div className="dualsurf-titlebar-wrapper" ref={titleBarRef}>
         <TitleBar
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenWorkspaceModal={() => setIsWorkspaceAccessOpen(true)}
-          workspaceDir={workspaceDir || settings?.workspaceSandboxDir}
+          onOpenSettings={() => handleOpenSettings('general')}
           onToggleTheme={handleToggleTheme}
           currentTheme={theme}
           mode={mode}
           onSwitchMode={handleModeChange}
+          isConnected={Boolean(window.dualsurf)}
         >
           <TabBar
             tabs={visibleTabs.length > 0 ? visibleTabs : tabs}
@@ -601,62 +558,7 @@ export const App: React.FC = () => {
             onSelectWorkspace={handleSelectWorkspace}
           />
         </TitleBar>
-
-        <NavigationBar
-          searchEngine={settings?.searchEngine || 'google'}
-          activeTab={activeTab}
-          tabs={tabs}
-          splitTabId={splitTabId}
-          mode={mode}
-          onModeChange={handleModeChange}
-          onNavigate={handleNavigate}
-          onGoBack={handleGoBack}
-          onGoForward={handleGoForward}
-          onReload={handleReload}
-          onStop={handleStop}
-          onHome={() => handleNavigate('dualsurf://newtab')}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenHistory={() => setIsHistoryOpen(true)}
-          onOpenBookmarks={() => setIsBookmarksOpen(true)}
-          onOpenDownloads={() => setIsDownloadsOpen(true)}
-          onOpenFind={() => setIsFindOpen(true)}
-          onNewTab={() => handleNewTab()}
-          onDuplicateTab={handleDuplicateTab}
-          onOpenMetadataDrawer={() => setIsMetadataDrawerOpen((prev) => !prev)}
-          onRunTool={(tool) => {
-            setTerminalCommand(tool);
-            handleModeChange('terminal');
-          }}
-          onOpenTabSearch={() => setIsTabSearchOpen(true)}
-          onOpenClearData={() => setIsClearDataOpen(true)}
-          onOpenShortcuts={() => setIsShortcutsOpen(true)}
-          onOpenReaderMode={() => setIsReaderModeOpen(true)}
-          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-          onToggleSplitTab={handleToggleSplitTab}
-          onOpenOllamaSetup={() => setIsOllamaSetupOpen(true)}
-          onToggleCopilot={() => setIsCopilotOpen((prev) => !prev)}
-          isCopilotOpen={isCopilotOpen}
-          onToggleShieldDropdown={() => setIsShieldDropdownOpen((prev) => !prev)}
-          isShieldDropdownOpen={isShieldDropdownOpen}
-          onOpenTrafficSniffer={() => setIsTrafficSnifferOpen(true)}
-          onOpenProxyModal={() => setIsProxyModalOpen(true)}
-          activeProxyMode={activeProxyConfig.mode}
-          onOpenCookieModal={() => setIsCookieModalOpen(true)}
-          onOpenUserAgentModal={() => setIsUserAgentModalOpen(true)}
-          onOpenAttackSurfaceModal={handleOpenAttackSurface}
-          onOpenCyberTools={() => setIsCyberToolsModalOpen(true)}
-          onOpenHttpRepeater={() => setIsRepeaterOpen(true)}
-          onOpenPrivacyAudit={() => setIsPrivacyAuditOpen(true)}
-        />
-
-        <BookmarksBar
-          activeTab={activeTab}
-          onNavigate={handleNavigate}
-          onNewTab={(url) => handleNewTab(url)}
-          onOpenAppMatrix={() => setIsAppMatrixOpen(true)}
-          mode={mode}
-        />
-      </header>
+      </div>
 
       {/* Floating Find in Page Bar */}
       <FindInPageBar
@@ -665,8 +567,8 @@ export const App: React.FC = () => {
         onClose={() => setIsFindOpen(false)}
       />
 
-      {/* Workspace Area: Left Navigation Sidebar + Right Main Card Viewport */}
-      <div className="dualsurf-workspace-layout">
+      {/* 2. Main Body Container: Left Sidebar + Right Main Browser Column */}
+      <div className="dualsurf-body-container">
         <Sidebar
           mode={mode}
           activeSection={activeSection}
@@ -686,168 +588,143 @@ export const App: React.FC = () => {
             } else if (sec === 'downloads') {
               setIsDownloadsOpen(true);
             } else if (sec === 'settings') {
-              setIsSettingsOpen(true);
+              handleOpenSettings('general');
             } else if (sec === 'about') {
-              setIsAppMatrixOpen(true);
+              handleOpenAbout();
             }
           }}
           onSwitchMode={handleModeChange}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenAbout={() => setIsAppMatrixOpen(true)}
+          onOpenSettings={() => handleOpenSettings('general')}
+          onOpenAbout={handleOpenAbout}
           onOpenHistory={() => setIsHistoryOpen(true)}
           onOpenBookmarks={() => setIsBookmarksOpen(true)}
           onOpenDownloads={() => setIsDownloadsOpen(true)}
-          onOpenTools={() => setIsCyberToolsModalOpen(true)}
-          onOpenNetwork={handleOpenAttackSurface}
-          onOpenProxy={() => setIsProxyModalOpen(true)}
-          onOpenRepeater={() => setIsRepeaterOpen(true)}
-          onOpenRedTeam={() => {
-            setActiveSection('red-team');
-            if (mode === 'terminal') handleModeChange('gui');
-          }}
-          onOpenBlueTeam={() => {
-            setActiveSection('blue-team');
-            if (mode === 'terminal') handleModeChange('gui');
-          }}
-          onOpenPurpleTeam={() => {
-            setActiveSection('purple-team');
-            if (mode === 'terminal') handleModeChange('gui');
-          }}
           onOpenTabSearch={() => setIsTabSearchOpen(true)}
         />
 
-        <main className="dualsurf-main-viewport">
-          {mode === 'terminal' ? (
-            /* Mode B: Fullscreen Terminal Browser Workspace */
-            <TerminalMode
-              activeTab={activeTab}
-              activeSession={activeSession}
-              initialCommand={terminalCommand}
-              onClearInitialCommand={() => setTerminalCommand(undefined)}
-              onSwitchToGui={() => handleModeChange('gui')}
-              onFollowLink={handleFollowNumberedLink}
-            />
-          ) : activeSection === 'blue-team' ? (
-            <BlueTeamWorkspace
-              onSwitchToTerminal={(cmd) => {
-                setTerminalCommand(cmd);
-                handleModeChange('terminal');
-              }}
-              activeUrl={activeTab?.url}
-            />
-          ) : activeSection === 'red-team' ? (
-            <RedTeamWorkspace
-              onSwitchToTerminal={(cmd) => {
-                setTerminalCommand(cmd);
-                handleModeChange('terminal');
-              }}
-              activeUrl={activeTab?.url}
-            />
-          ) : activeSection === 'purple-team' ? (
-            <PurpleTeamWorkspace
-              onSwitchToTerminal={(cmd) => {
-                setTerminalCommand(cmd);
-                handleModeChange('terminal');
-              }}
-              activeUrl={activeTab?.url}
-            />
-          ) : isBlankTab ? (
-            /* Mode A: New Tab Hero Page matching Screenshot 1 */
-            <NewTabPage
+        <div className="dualsurf-main-column">
+          {/* Main Column Navigation & Bookmarks Header */}
+          <header className="dualsurf-main-nav-header" ref={navHeaderRef}>
+            <NavigationBar
               searchEngine={settings?.searchEngine || 'google'}
-              onUpdateSearchEngine={(engine) => {
-                if (window.dualsurf) {
-                  window.dualsurf.updateSettings({ searchEngine: engine });
-                }
-                setSettings((prev) => (prev ? { ...prev, searchEngine: engine } : null));
-              }}
-              onNavigate={handleNavigate}
-              onSwitchToTerminal={() => handleModeChange('terminal')}
-              onNewTab={() => handleNewTab()}
-              onOpenAbout={() => setIsAppMatrixOpen(true)}
-              onOpenSettings={() => setIsSettingsOpen(true)}
-              onOpenCyberTools={() => setIsCyberToolsModalOpen(true)}
-              onOpenTrafficSniffer={() => setIsTrafficSnifferOpen(true)}
-              onOpenProxyModal={() => setIsProxyModalOpen(true)}
               activeTab={activeTab}
-              activeSession={activeSession}
-              activeProxyMode={activeProxyConfig.mode}
-              theme={theme}
-              onToggleTheme={handleToggleTheme}
+              tabs={tabs}
+              splitTabId={splitTabId}
+              mode={mode}
+              onModeChange={handleModeChange}
+              onNavigate={handleNavigate}
+              onGoBack={handleGoBack}
+              onGoForward={handleGoForward}
+              onReload={handleReload}
+              onStop={handleStop}
+              onHome={() => handleNavigate('dualsurf://newtab')}
+              onOpenSettings={() => handleOpenSettings('general')}
+              onOpenHistory={() => setIsHistoryOpen(true)}
+              onOpenBookmarks={() => setIsBookmarksOpen(true)}
+              onOpenDownloads={() => setIsDownloadsOpen(true)}
+              onOpenFind={() => setIsFindOpen(true)}
+              onNewTab={() => handleNewTab()}
+              onDuplicateTab={handleDuplicateTab}
+              onOpenMetadataDrawer={() => setIsMetadataDrawerOpen((prev) => !prev)}
+              onOpenTabSearch={() => setIsTabSearchOpen(true)}
+              onOpenClearData={() => setIsClearDataOpen(true)}
+              onOpenShortcuts={() => setIsShortcutsOpen(true)}
+              onOpenReaderMode={() => setIsReaderModeOpen(true)}
+              onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+              onToggleSplitTab={handleToggleSplitTab}
+              onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+              isSidebarCollapsed={isSidebarCollapsed}
             />
-          ) : (
-            /* Mode A: Native WebContentsView fills this space beneath the chrome in Electron */
-            <div className="gui-viewport-container">
-              {pageSnapshot && isAnyModalOpen && !isBlankTab && (
-                <div
-                  className="gui-viewport-snapshot-bg"
-                  style={{ backgroundImage: `url(${pageSnapshot})` }}
-                />
-              )}
-              {(window as any).isBrowserMock && activeTab?.url && (
-                <div className="browser-mock-web-viewport">
-                  <div className="mock-viewport-header">
-                    <div className="mock-viewport-left">
-                      <span className="mock-url-badge">{activeTab.url}</span>
-                      <span className="mock-sandbox-badge">Sandboxed Cyber Browser Preview</span>
-                    </div>
-                    <div className="mock-viewport-actions">
-                      <button
-                        className="mock-action-btn"
-                        onClick={() => setIsPrivacyAuditOpen(true)}
-                        title="Audit Target Security"
-                      >
-                        <Shield size={12} />
-                        <span>Audit</span>
-                      </button>
-                      <button
-                        className="mock-action-btn"
-                        onClick={() => setIsRepeaterOpen(true)}
-                        title="Open HTTP Repeater"
-                      >
-                        <Send size={12} />
-                        <span>Repeater</span>
-                      </button>
-                      <button
-                        className="mock-action-btn"
-                        onClick={() => setIsTrafficSnifferOpen(true)}
-                        title="Inspect Traffic Logs"
-                      >
-                        <Database size={12} />
-                        <span>Sniffer</span>
-                      </button>
-                      <a
-                        href={activeTab.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mock-action-btn external"
-                        title="Open in new window"
-                      >
-                        <ExternalLink size={12} />
-                        <span>Open Direct</span>
-                      </a>
-                    </div>
-                  </div>
-                  <iframe
-                    key={activeTab.url}
-                    src={activeTab.url}
-                    title={activeTab.title || 'Web View'}
-                    className="mock-web-iframe"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+
+            <BookmarksBar
+              activeTab={activeTab}
+              onNavigate={handleNavigate}
+              onNewTab={(url) => handleNewTab(url)}
+              mode={mode}
+            />
+          </header>
+
+          <main className="dualsurf-main-viewport" ref={mainViewportRef}>
+            {mode === 'terminal' ? (
+              /* Mode B: Fullscreen Terminal Browser Workspace */
+              <TerminalMode
+                activeTab={activeTab}
+                activeSession={activeSession}
+                initialCommand={terminalCommand}
+                onClearInitialCommand={() => setTerminalCommand(undefined)}
+                onSwitchToGui={() => handleModeChange('gui')}
+                onFollowLink={handleFollowNumberedLink}
+              />
+            ) : isBlankTab ? (
+              /* Mode A: New Tab Hero Page */
+              <NewTabPage
+                searchEngine={settings?.searchEngine || 'google'}
+                onUpdateSearchEngine={(engine) => {
+                  if (window.dualsurf) {
+                    window.dualsurf.updateSettings({ searchEngine: engine });
+                  }
+                  setSettings((prev) => (prev ? { ...prev, searchEngine: engine } : null));
+                }}
+                onNavigate={handleNavigate}
+                onSwitchToTerminal={() => handleModeChange('terminal')}
+                onNewTab={() => handleNewTab()}
+                onOpenAbout={handleOpenAbout}
+                onOpenSettings={() => handleOpenSettings('general')}
+                activeTab={activeTab}
+                activeSession={activeSession}
+                theme={theme}
+                onToggleTheme={handleToggleTheme}
+              />
+            ) : (
+              /* Mode A: Native WebContentsView fills this space beneath the chrome in Electron */
+              <div className="gui-viewport-container">
+                {pageSnapshot && isAnyModalOpen && !isBlankTab && (
+                  <div
+                    className="gui-viewport-snapshot-bg"
+                    style={{ backgroundImage: `url(${pageSnapshot})` }}
                   />
-                </div>
-              )}
-            </div>
-          )}
-        </main>
+                )}
+                {(window as any).isBrowserMock && activeTab?.url && (
+                  <div className="browser-mock-web-viewport">
+                    <div className="mock-viewport-header">
+                      <div className="mock-viewport-left">
+                        <span className="mock-url-badge">{activeTab.url}</span>
+                        <span className="mock-sandbox-badge">Browser Preview</span>
+                      </div>
+                      <div className="mock-viewport-actions">
+                        <a
+                          href={activeTab.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mock-action-btn external"
+                          title="Open in new window"
+                        >
+                          <ExternalLink size={12} />
+                          <span>Open Direct</span>
+                        </a>
+                      </div>
+                    </div>
+                    <iframe
+                      key={activeTab.url}
+                      src={activeTab.url}
+                      title={activeTab.title || 'Web View'}
+                      className="mock-web-iframe"
+                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+        </div>
       </div>
 
       {/* Browser Modals */}
       <ErrorBoundary fallbackTitle="Settings Error" onReset={() => setIsSettingsOpen(false)}>
         <SettingsModal
           isOpen={isSettingsOpen}
+          initialCategory={settingsCategory}
           onClose={() => setIsSettingsOpen(false)}
-          onOpenOllamaSetup={() => setIsOllamaSetupOpen(true)}
           onOpenClearData={() => setIsClearDataOpen(true)}
         />
       </ErrorBoundary>
@@ -872,41 +749,12 @@ export const App: React.FC = () => {
         onClose={() => setIsDownloadsOpen(false)}
       />
 
-      <AppMatrixModal
-        isOpen={isAppMatrixOpen}
-        onClose={() => setIsAppMatrixOpen(false)}
-        onOpenSection={(sec) => {
-          if (sec === 'history') setIsHistoryOpen(true);
-          else if (sec === 'bookmarks') setIsBookmarksOpen(true);
-          else if (sec === 'downloads') setIsDownloadsOpen(true);
-          else if (sec === 'settings') setIsSettingsOpen(true);
-        }}
-        onOpenTool={(tool) => {
-          if (tool === 'repeater') setIsRepeaterOpen(true);
-          else if (tool === 'sniffer') setIsTrafficSnifferOpen(true);
-          else if (tool === 'proxy') setIsProxyModalOpen(true);
-          else if (tool === 'audit') setIsPrivacyAuditOpen(true);
-          else if (tool === 'surface') handleOpenAttackSurface();
-          else if (tool === 'cookies') setIsCookieModalOpen(true);
-          else if (tool === 'cybertools') setIsCyberToolsModalOpen(true);
-          else if (tool === 'useragent') setIsUserAgentModalOpen(true);
-          else {
-            setTerminalCommand(tool);
-            handleModeChange('terminal');
-          }
-        }}
-      />
-
       {/* Page Inspection & DOM Metadata Drawer */}
       <PageMetadataDrawer
         isOpen={isMetadataDrawerOpen}
         onClose={() => setIsMetadataDrawerOpen(false)}
         activeTabId={activeTabId}
         onFollowLink={handleFollowNumberedLink}
-        onRunTool={(tool) => {
-          setTerminalCommand(tool);
-          handleModeChange('terminal');
-        }}
       />
 
       {/* Fast Tab Switcher Modal (Ctrl+Shift+A) */}
@@ -958,148 +806,13 @@ export const App: React.FC = () => {
           setIsReaderModeOpen(true);
         }}
         onSwitchMode={handleModeChange}
-        onRunTool={(tool) => {
-          setTerminalCommand(tool);
-          handleModeChange('terminal');
-        }}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenBookmarks={() => setIsBookmarksOpen(true)}
         onOpenDownloads={() => setIsDownloadsOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={() => handleOpenSettings('general')}
         onOpenClearData={() => setIsClearDataOpen(true)}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
         onOpenMetadataDrawer={() => setIsMetadataDrawerOpen(true)}
-        onOpenOllamaSetup={() => {
-          setIsCommandPaletteOpen(false);
-          setIsOllamaSetupOpen(true);
-        }}
-        onToggleCopilot={() => {
-          setIsCommandPaletteOpen(false);
-          setIsCopilotOpen((prev) => !prev);
-        }}
-        onOpenTrafficSniffer={() => {
-          setIsCommandPaletteOpen(false);
-          setIsTrafficSnifferOpen(true);
-        }}
-        onOpenHttpRepeater={() => {
-          setIsCommandPaletteOpen(false);
-          setIsRepeaterOpen(true);
-        }}
-        onOpenPrivacyAudit={() => {
-          setIsCommandPaletteOpen(false);
-          setIsPrivacyAuditOpen(true);
-        }}
-      />
-
-      {/* Ollama Setup & Configuration Wizard Modal */}
-      <OllamaSetupModal
-        isOpen={isOllamaSetupOpen}
-        onClose={() => setIsOllamaSetupOpen(false)}
-      />
-
-      {/* Cyber Shield Dropdown */}
-      <CyberShieldDropdown
-        isOpen={isShieldDropdownOpen}
-        onClose={() => setIsShieldDropdownOpen(false)}
-        activeTab={activeTab}
-        onOpenTrafficSniffer={() => setIsTrafficSnifferOpen(true)}
-        onOpenPrivacyAudit={() => setIsPrivacyAuditOpen(true)}
-        onOpenProxyModal={() => setIsProxyModalOpen(true)}
-      />
-
-      {/* AI Copilot Sidebar */}
-      <AiCopilotSidebar
-        isOpen={isCopilotOpen}
-        onClose={() => setIsCopilotOpen(false)}
-        activeTab={activeTab}
-        ollamaSettings={settings?.ollama}
-        onOpenOllamaSetup={() => setIsOllamaSetupOpen(true)}
-      />
-
-      {/* Live Cyber Traffic Sniffer Modal */}
-      <TrafficSnifferModal
-        isOpen={isTrafficSnifferOpen}
-        onClose={() => setIsTrafficSnifferOpen(false)}
-        activeTab={activeTab}
-        onSendToRepeater={(req) => {
-          setRepeaterInitialReq({
-            url: req.url,
-            method: req.method,
-            headers: req.headers,
-          });
-          setIsTrafficSnifferOpen(false);
-          setIsRepeaterOpen(true);
-        }}
-      />
-
-      {/* Proxy & Anonymity Switcher Modal */}
-      <ProxySwitcherModal
-        isOpen={isProxyModalOpen}
-        onClose={() => setIsProxyModalOpen(false)}
-        onProxyChanged={(cfg) => setActiveProxyConfig(cfg)}
-      />
-
-      {/* Cookie & Session Inspector Modal */}
-      <CookieEditorModal
-        isOpen={isCookieModalOpen}
-        onClose={() => setIsCookieModalOpen(false)}
-        activeTab={activeTab || undefined}
-      />
-
-      {/* User-Agent & Anti-Fingerprint Cloak Modal */}
-      <UserAgentModal
-        isOpen={isUserAgentModalOpen}
-        onClose={() => setIsUserAgentModalOpen(false)}
-      />
-
-      {/* Attack Surface Graph Modal */}
-      <AttackSurfaceGraphModal
-        isOpen={isAttackSurfaceModalOpen}
-        onClose={() => setIsAttackSurfaceModalOpen(false)}
-        metadata={pageMetadata}
-        activeTab={activeTab || undefined}
-        onOpenUrl={handleNavigate}
-        onRunAudit={(target) => {
-          setIsAttackSurfaceModalOpen(false);
-          setTerminalCommand(`auto-audit ${target}`);
-          handleModeChange('terminal');
-        }}
-      />
-
-      {/* Cyber Swiss Army Knife Modal */}
-      <CyberToolsModal
-        isOpen={isCyberToolsModalOpen}
-        onClose={() => setIsCyberToolsModalOpen(false)}
-      />
-
-      {/* Burp-style HTTP Request Repeater Modal */}
-      <HttpRepeaterModal
-        isOpen={isRepeaterOpen}
-        onClose={() => setIsRepeaterOpen(false)}
-        initialRequest={repeaterInitialReq}
-      />
-
-      {/* Privacy Health & Leak Diagnostic Suite Modal */}
-      <PrivacyAuditModal
-        isOpen={isPrivacyAuditOpen}
-        onClose={() => setIsPrivacyAuditOpen(false)}
-        onOpenProxyModal={() => {
-          setIsPrivacyAuditOpen(false);
-          setIsProxyModalOpen(true);
-        }}
-        onOpenUserAgentModal={() => {
-          setIsPrivacyAuditOpen(false);
-          setIsUserAgentModalOpen(true);
-        }}
-      />
-
-      {/* Kali Workspace Sandbox Permission Modal */}
-      <WorkspaceAccessModal
-        isOpen={isWorkspaceAccessOpen}
-        onClose={() => setIsWorkspaceAccessOpen(false)}
-        currentSandboxDir={workspaceDir || settings?.workspaceSandboxDir}
-        onGrantAccess={handleGrantWorkspaceAccess}
-        forcePrompt={false}
       />
     </div>
   );

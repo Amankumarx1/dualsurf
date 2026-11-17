@@ -201,7 +201,7 @@ export class InterceptProxyEngine extends EventEmitter {
     );
   }
 
-  private matchesRule(urlStr: string, method: string, rule: InterceptRule): boolean {
+  public matchesRule(urlStr: string, method: string, rule: InterceptRule): boolean {
     if (rule.match.methods && rule.match.methods.length > 0) {
       if (!rule.match.methods.includes(method.toUpperCase())) return false;
     }
@@ -225,6 +225,10 @@ export class InterceptProxyEngine extends EventEmitter {
     }
 
     return true;
+  }
+
+  public shouldIntercept(urlStr: string, method: string = 'GET'): boolean {
+    return this.rules.some((rule) => rule.enabled && this.matchesRule(urlStr, method, rule));
   }
 
   private shouldBreakpoint(urlStr: string, method: string): boolean {

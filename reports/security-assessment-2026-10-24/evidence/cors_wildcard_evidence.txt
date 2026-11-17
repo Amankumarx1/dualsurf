@@ -1,0 +1,15 @@
+=== EVIDENCE: WILDCARD ACCESS-CONTROL-ALLOW-ORIGIN HEADER ===
+Artifact ID: EVD-CORS-WILDCARD-01
+Timestamp: 2026-10-24T19:32:39+05:30
+Target: https://www.amankumarx1.xyz/
+Command Executed: curl.exe -I -s -S --max-time 10 https://www.amankumarx1.xyz/
+
+Header Line Observed:
+---------------------
+Access-Control-Allow-Origin: *
+
+Analysis:
+The server returns 'Access-Control-Allow-Origin: *' on top-level HTML document requests.
+While this website does not process authenticated session cookies (Credentials mode is not enabled with wildcard), setting wildcard CORS on entire HTML pages is an overly permissive default that permits arbitrary third-party origins to read cross-origin responses if sensitive dynamic content is later introduced.
+Remediation:
+Scope CORS headers strictly to public API endpoints or static asset folders (e.g. /assets/*) rather than the root HTML document.

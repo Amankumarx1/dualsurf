@@ -1,0 +1,40 @@
+=== ACTIVE DIRECTORY & IDENTITY TOOL AVAILABILITY CHECKS ===
+Audited At: 2026-10-24T19:34:00+05:30
+Host: Windows 11 Enterprise / Pro (Win32NT 10.0.26300.0)
+
+1. BloodHound:
+- Detection Result: NOT DETECTED
+- Probed Locations: standard PATH, %LOCALAPPDATA%\Programs\bloodhound, Docker localhost:8080
+- Port 8080 (BloodHound CE API): OFFLINE / UNREACHABLE
+- Port 7474 (Neo4j REST): OFFLINE / UNREACHABLE
+- Port 7687 (Neo4j Bolt): OFFLINE / UNREACHABLE
+- Status: NOT INSTALLED / NOT LISTENING
+
+2. SharpHound:
+- Detection Result: NOT DETECTED
+- Probed Locations: standard PATH, C:\tools\SharpHound\SharpHound.exe, %APPDATA%\SharpHound
+- Python Collector (bloodhound-python): NOT INSTALLED
+- Status: NOT INSTALLED
+
+3. Impacket:
+- Python Environment: Python 3.13.14 (C:\Users\amank\AppData\Local\Microsoft\WindowsApps\python.exe)
+- Probed Command: python -c "import impacket"
+- Output: ModuleNotFoundError: No module named 'impacket'
+- Individual Utility Scripts (GetADUsers, GetUserSPNs, lookupsid, rpcdump, samrdump, smbclient): NOT FOUND on PATH
+- Status: NOT INSTALLED
+
+4. NetExec (nxc):
+- Probed Command: python -c "import nxc" & where.exe nxc
+- Output: ModuleNotFoundError: No module named 'nxc'
+- Executable in PATH: NOT FOUND
+- Status: NOT INSTALLED
+
+=== LIVE APPLICABILITY DECISION ===
+Target Under Audit: https://www.amankumarx1.xyz/
+Target Platform: Static Single-Page Web Application hosted on Vercel Anycast Edge Network (Mumbai POP: bom1).
+Active Directory Domain Present: NO (Confirmed Negative).
+LDAP Ports (389 / 636): NOT APPLICABLE / NOT PRESENT on target.
+SMB Port (445): NOT APPLICABLE / NOT PRESENT on target.
+Kerberos Port (88): NOT APPLICABLE / NOT PRESENT on target.
+Conclusion: Active Directory live collection, domain enumeration, and graph analysis are NOT APPLICABLE to https://www.amankumarx1.xyz/. No authorized Active Directory lab environment was designated for live directory queries.
+DualSurf's internal offline BloodHound JSON parser and evidence hashing pipeline were verified using isolated test fixtures in unit test suite tests/unit/ad-identity.test.js.

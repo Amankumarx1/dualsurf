@@ -11,7 +11,6 @@ import type { BookmarkEntry, TabState } from '@dualsurf/shared-types';
 interface BookmarksBarProps {
   activeTab: TabState | null;
   onNavigate: (url: string) => void;
-  onOpenAppMatrix?: () => void;
   onNewTab?: (url: string) => void;
   mode?: 'gui' | 'terminal';
 }
@@ -28,7 +27,6 @@ interface BookmarkContextMenu {
 export const BookmarksBar: React.FC<BookmarksBarProps> = ({
   activeTab,
   onNavigate,
-  onOpenAppMatrix,
   onNewTab,
   mode,
 }) => {
@@ -164,49 +162,6 @@ export const BookmarksBar: React.FC<BookmarksBarProps> = ({
         </span>
       ),
     },
-    {
-      label: 'Stack Overflow',
-      url: 'https://stackoverflow.com',
-      icon: (
-        <span className="brand-dot-icon so-icon">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="#F48024">
-            <path d="M18.986 21.865v-6.408h2.134V24H1.84v-8.543h2.133v6.408h15.013zM6.111 19.731h10.68v-2.134H6.11v2.134zm.447-4.492l10.37 2.617.51-2.072-10.37-2.617-.51 2.072zm1.61-4.838l9.44 5.163.99-1.89-9.44-5.163-.99 1.89zm3.327-4.786l7.73 7.37 1.45-1.57-7.73-7.37-1.45 1.57zm5.55-5.615l-1.8 1.15 5.8 8.97 1.8-1.15-5.8-8.97z" />
-          </svg>
-        </span>
-      ),
-    },
-    {
-      label: 'Docs',
-      url: 'https://developer.mozilla.org',
-      icon: (
-        <span className="brand-dot-icon docs-icon">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-          </svg>
-        </span>
-      ),
-    },
-    {
-      label: 'Hacker News',
-      url: 'https://news.ycombinator.com',
-      icon: (
-        <span className="brand-dot-icon hn-icon">
-          <span style={{ background: '#ff6600', color: '#fff', fontWeight: 800, padding: '0 3px', borderRadius: '2px', fontSize: '9px' }}>Y</span>
-        </span>
-      ),
-    },
-    {
-      label: 'Wikipedia',
-      url: 'https://wikipedia.org',
-      icon: (
-        <span className="brand-dot-icon wiki-icon">
-          <span style={{ color: '#ffffff', fontWeight: 900, fontSize: '10px', fontFamily: 'serif' }}>W</span>
-        </span>
-      ),
-    },
   ];
 
   return (
@@ -250,22 +205,8 @@ export const BookmarksBar: React.FC<BookmarksBarProps> = ({
           onClick={handleAddBookmark}
           title="Add current tab to Bookmarks"
         >
-          <Plus size={12} />
+          <Plus size={11} />
           <span>Add</span>
-        </button>
-      </div>
-
-      {/* Right side utilities (App Matrix Grid Launcher) */}
-      <div className="bookmarks-right-tools">
-        {/* DualSurf App Matrix Launcher Button */}
-        <button
-          className="grid-apps-btn"
-          onClick={() => {
-            if (onOpenAppMatrix) onOpenAppMatrix();
-          }}
-          title="DualSurf App Matrix & Tools Launcher"
-        >
-          <LayoutGrid size={15} />
         </button>
       </div>
 

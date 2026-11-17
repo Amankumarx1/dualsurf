@@ -106,7 +106,7 @@ export interface PlatformDiagnostics {
 }
 
 export interface ProxyConfig {
-  mode: 'direct' | 'tor' | 'burp' | 'custom';
+  mode: 'direct' | 'tor' | 'burp' | 'zap' | 'custom';
   server?: string;
   bypassList?: string[];
 }
@@ -1485,4 +1485,311 @@ export interface LabEnvironmentProfile {
   linkedRoEScopeId: string;
   notes?: string;
 }
+
+// ============================================================================
+// NETWORK RECONNAISSANCE & RED TEAM TOOLKIT TYPES
+// ============================================================================
+
+export type ReconToolId = 'nmap' | 'wireshark' | 'tshark' | 'netcat' | 'ncat' | 'masscan';
+
+export interface ReconToolStatus {
+  id: ReconToolId;
+  name: string;
+  category: 'Host & Port Enumeration' | 'Packet Inspection' | 'Connectivity & Protocol Testing' | 'High-Speed Discovery';
+  bin: string;
+  installed: boolean;
+  path?: string;
+  version?: string;
+  variant?: string; // e.g. "Ncat", "OpenBSD Netcat", "GNU Netcat", "TShark"
+  capabilities: string[];
+  permissions: {
+    requiresElevation: boolean;
+    requiresRawSockets: boolean;
+    requiresCaptureDriver: boolean; // e.g. Npcap, WinPcap, PF_RING
+    details: string;
+  };
+  missingDependencies?: string[];
+  installGuidance: {
+    windows: string;
+    linux: string;
+    macos: string;
+    documentationUrl: string;
+  };
+}
+
+export interface ReconResultRecord {
+  id: string;
+  toolId: ReconToolId;
+  command: string;
+  target?: string;
+  output: string;
+  exitCode: number;
+  durationMs: number;
+  timestamp: string;
+  inScope?: boolean;
+  rawPath?: string;
+}
+
+export interface ReconDoctorReport {
+  timestamp: string;
+  platform: string;
+  arch: string;
+  osRelease: string;
+  isElevated: boolean;
+  captureDriver: {
+    detected: boolean;
+    name?: string;
+    version?: string;
+    notes: string;
+  };
+  tools: ReconToolStatus[];
+  recommendations: string[];
+}
+
+export interface ScanScopeValidation {
+  target: string;
+  inScope: boolean;
+  isLocalOrLab: boolean;
+  riskLevel: 'SAFE' | 'CONTROLLED' | 'OUT_OF_SCOPE';
+  reason: string;
+  matchingScopeId?: string;
+}
+
+// ============================================================================
+// WEB APPLICATION TESTING & PROXY TOOLKIT TYPES
+// ============================================================================
+
+export type WebToolId = 'burp' | 'zap' | 'devtools' | 'ffuf' | 'java';
+
+export interface WebToolStatus {
+  id: WebToolId;
+  name: string;
+  category: 'Web Proxy & Interception' | 'Automated App Scanner' | 'Browser Debugging' | 'Web Fuzzing & Discovery' | 'Runtime Dependency';
+  bin: string;
+  installed: boolean;
+  path?: string;
+  version?: string;
+  edition?: string;
+  running: boolean;
+  listenerReachable?: boolean;
+  listenerUrl?: string;
+  capabilities: string[];
+  permissions: {
+    requiresElevation: boolean;
+    details: string;
+  };
+  missingDependencies?: string[];
+  installGuidance: {
+    windows: string;
+    linux: string;
+    macos: string;
+    documentationUrl: string;
+  };
+}
+
+export interface WebDoctorReport {
+  timestamp: string;
+  platform: string;
+  arch: string;
+  osRelease: string;
+  java: {
+    installed: boolean;
+    version?: string;
+    path?: string;
+    notes: string;
+  };
+  proxyRouting: {
+    active: boolean;
+    mode: 'direct' | 'burp' | 'zap' | 'custom' | 'tor';
+    server?: string;
+    listenerReachable: boolean;
+  };
+  tools: WebToolStatus[];
+  wordlists: {
+    detected: boolean;
+    paths: string[];
+  };
+  recommendations: string[];
+}
+
+export interface FfufJobConfig {
+  targetUrl: string;
+  wordlistPath: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'HEAD';
+  headers?: Record<string, string>;
+  rateLimit?: number;
+  maxTimeSec?: number;
+  matchCodes?: string;
+  filterCodes?: string;
+  filterSize?: string;
+  outputPath?: string;
+  outputFormat?: 'json' | 'csv' | 'html';
+}
+
+export interface FfufMatchResult {
+  input: string;
+  status: number;
+  length: number;
+  words: number;
+  lines: number;
+  duration: number;
+  redirectLocation?: string;
+}
+
+export interface FfufResultRecord {
+  id: string;
+  target: string;
+  wordlist: string;
+  command: string;
+  results: FfufMatchResult[];
+  rawOutput: string;
+  exitCode: number;
+  durationMs: number;
+  timestamp: string;
+  inScope: boolean;
+  evidenceHash?: string;
+}
+
+export interface ZapAlertItem {
+  id: string;
+  alert: string;
+  risk: 'High' | 'Medium' | 'Low' | 'Informational';
+  confidence: 'High' | 'Medium' | 'Low' | 'False Positive';
+  url: string;
+  param?: string;
+  attack?: string;
+  description: string;
+  solution: string;
+  cweid?: string;
+  wascid?: string;
+}
+
+export interface WebProxyStatus {
+  active: boolean;
+  targetTool: 'burp' | 'zap' | 'custom' | 'none';
+  proxyRules: string;
+  listenerReachable: boolean;
+  tlsInterceptionNotice: string;
+}
+
+// ============================================================================
+// ACTIVE DIRECTORY & IDENTITY ASSESSMENT TYPES (BloodHound, SharpHound, Impacket, NetExec)
+// ============================================================================
+
+export type AdToolId = 'bloodhound' | 'sharphound' | 'impacket' | 'netexec' | 'python';
+
+export interface AdToolStatus {
+  id: AdToolId;
+  name: string;
+  category: string;
+  bin: string;
+  installed: boolean;
+  path?: string;
+  version?: string;
+  edition?: string;
+  running?: boolean;
+  capabilities: string[];
+  permissions: {
+    requiresElevation: boolean;
+    details: string;
+    domainJoinedRecommended?: boolean;
+  };
+  missingDependencies?: string[];
+  serviceReachable?: boolean;
+  serviceUrl?: string;
+  installGuidance: {
+    windows: string;
+    linux: string;
+    macos: string;
+    documentationUrl: string;
+  };
+}
+
+export interface AdDoctorReport {
+  timestamp: string;
+  platform: string;
+  arch: string;
+  osRelease: string;
+  python: {
+    installed: boolean;
+    version?: string;
+    path?: string;
+  };
+  dotnet: {
+    installed: boolean;
+    version?: string;
+  };
+  neo4jService: {
+    reachable: boolean;
+    url: string;
+    notes: string;
+  };
+  bloodhoundService: {
+    reachable: boolean;
+    url: string;
+    notes: string;
+  };
+  tools: AdToolStatus[];
+  recommendations: string[];
+}
+
+export interface AdEnvironmentConfig {
+  domainName: string;
+  domainController: string;
+  authMethod: 'kerberos' | 'ntlm' | 'ldaps' | 'current-user';
+  collectionScope: 'default' | 'all' | 'dconly' | 'computeronly' | 'session' | 'objectprops';
+  roeApproved: boolean;
+  lastAssessmentDate?: string;
+}
+
+export interface SharpHoundJobConfig {
+  domain: string;
+  domainController?: string;
+  collectionMethod: 'Default' | 'All' | 'DCOnly' | 'ComputerOnly' | 'Session' | 'LoggedOn';
+  outputDirectory: string;
+  zipFileName?: string;
+  throttleMs?: number;
+  threads?: number;
+  searchForest?: boolean;
+  excludeDCs?: boolean;
+}
+
+export interface BloodHoundImportSummary {
+  domain: string;
+  importedAt: string;
+  sourceFile: string;
+  userCount: number;
+  groupCount: number;
+  computerCount: number;
+  ouCount: number;
+  gpoCount: number;
+  domainTrustsCount: number;
+  highPrivUsersCount: number;
+  adminCountUsersCount: number;
+  rawHash: string;
+}
+
+export interface ImpacketInventoryItem {
+  name: string;
+  scriptName: string;
+  category: 'Directory Enumeration' | 'Protocol Diagnostics' | 'RPC / MSRPC Inspection' | 'Authentication Assessment';
+  installed: boolean;
+  path?: string;
+  documentationUrl: string;
+  description: string;
+}
+
+export interface AdAssessmentRecord {
+  id: string;
+  timestamp: string;
+  toolId: AdToolId;
+  targetDomain: string;
+  command: string;
+  summary: string;
+  rawOutput: string;
+  exitCode: number;
+  durationMs: number;
+  evidenceHash: string;
+}
+
 

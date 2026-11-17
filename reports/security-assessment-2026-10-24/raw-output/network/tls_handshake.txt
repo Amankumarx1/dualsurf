@@ -1,0 +1,51 @@
+=== TLS HANDSHAKE & NEGOTIATION FOR HTTPS://WWW.AMANKUMARX1.XYZ/ ===
+Timestamp: 2026-10-24T19:32:58+05:30
+Command: curl.exe -vI --max-time 10 https://www.amankumarx1.xyz/
+
+* Host www.amankumarx1.xyz:443 was resolved.
+* IPv6: (none)
+* IPv4: 76.76.21.164, 66.33.60.34
+*   Trying 76.76.21.164:443...
+* schannel: disabled automatic use of client certificate
+* ALPN: curl offers http/1.1
+* ALPN: server accepted http/1.1
+* Established connection to www.amankumarx1.xyz (76.76.21.164 port 443) from 192.168.1.17 port 63998 
+* using HTTP/1.x
+> HEAD / HTTP/1.1
+> Host: www.amankumarx1.xyz
+> User-Agent: curl/8.21.0
+> Accept: */*
+> 
+* Request completely sent off
+* schannel: remote party requests renegotiation
+* schannel: renegotiating SSL/TLS connection
+* schannel: SSL/TLS connection renegotiated
+< HTTP/1.1 200 OK
+< Accept-Ranges: bytes
+< Access-Control-Allow-Origin: *
+< Age: 500
+< Cache-Control: public, max-age=0, must-revalidate
+< Content-Disposition: inline
+< Content-Length: 73190
+< Content-Type: text/html; charset=utf-8
+< Date: Sat, 24 Oct 2026 14:03:02 GMT
+< Etag: "510c705077da7010f21bd0a975926552"
+< Last-Modified: Sat, 24 Oct 2026 13:54:42 GMT
+< Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+< Referrer-Policy: strict-origin-when-cross-origin
+< Server: Vercel
+< Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+< X-Content-Type-Options: nosniff
+< X-Frame-Options: DENY
+< X-Vercel-Cache: HIT
+< X-Vercel-Id: bom1::259gf-1792850582454-506b627a56dc
+< X-Xss-Protection: 1; mode=block
+< 
+* Connection #0 to host www.amankumarx1.xyz:443 left intact
+
+=== TLS ANALYSIS OBSERVATIONS ===
+TLS Handshake Status: Successful
+Protocol Version: TLS 1.2 / TLS 1.3 negotiated via Windows Schannel
+ALPN: http/1.1 accepted
+Port: 443 Open & Responding
+Server: Vercel Edge Node (POP: bom1 - Mumbai)

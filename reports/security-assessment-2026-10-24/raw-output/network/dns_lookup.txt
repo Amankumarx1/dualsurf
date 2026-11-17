@@ -1,0 +1,30 @@
+=== NSLOOKUP FOR WWW.AMANKUMARX1.XYZ ===
+Timestamp: 2026-10-24T19:32:20+05:30
+Command: nslookup www.amankumarx1.xyz
+
+Non-authoritative answer:
+Server:  local.airtelfiber.com
+Address:  192.168.1.1
+
+Name:    cname.vercel-dns.com
+Addresses:  76.76.21.164
+	  66.33.60.34
+Aliases:  www.amankumarx1.xyz
+
+=== NSLOOKUP FOR APEX AMANKUMARX1.XYZ ===
+Timestamp: 2026-10-24T19:32:27+05:30
+Command: nslookup amankumarx1.xyz
+
+Non-authoritative answer:
+Server:  local.airtelfiber.com
+Address:  192.168.1.1
+
+Name:    amankumarx1.xyz
+Address:  76.76.21.21
+
+=== DNS ARCHITECTURE SUMMARY ===
+CNAME Target: cname.vercel-dns.com
+Hosting Provider: Vercel Anycast Edge Network
+Edge IP Addresses: 76.76.21.164, 66.33.60.34 (Shared multi-tenant reverse proxy)
+Apex IP Address: 76.76.21.21
+Resolution Result: Verified valid and active

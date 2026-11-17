@@ -1,0 +1,17 @@
+=== EVIDENCE: VERCEL EDGE HEADERS & SERVER DISCLOSURE ===
+Artifact ID: EVD-VERCEL-EDGE-01
+Timestamp: 2026-10-24T19:32:39+05:30
+Source URL: https://www.amankumarx1.xyz/
+Command Executed: curl.exe -I -s -S --max-time 10 https://www.amankumarx1.xyz/
+
+Raw Evidence Snippet:
+---------------------
+Server: Vercel
+X-Vercel-Cache: HIT
+X-Vercel-Id: bom1::259gf-1792850563558-a2d3799ca336
+Age: 481
+Cache-Control: public, max-age=0, must-revalidate
+
+Analysis:
+The server explicitly discloses 'Server: Vercel' and internal POP identifiers ('bom1', corresponding to Vercel's Mumbai, India edge node).
+While standard for Vercel-hosted sites, server banner disclosure aids attackers in identifying the underlying hosting infrastructure and tailoring platform-specific techniques.

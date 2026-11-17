@@ -7,8 +7,6 @@ import {
   Volume2,
   VolumeX,
   Terminal,
-  Shield,
-  Lock,
   Code2,
   History,
   Bookmark,
@@ -22,9 +20,6 @@ import {
   Zap,
   ArrowRight,
   Layers,
-  Bot,
-  Activity,
-  Send,
 } from 'lucide-react';
 import type { TabState } from '@dualsurf/shared-types';
 
@@ -41,7 +36,6 @@ interface CommandPaletteModalProps {
   onToggleMuteTab: (tabId: string) => void;
   onOpenReaderMode: () => void;
   onSwitchMode: (mode: 'gui' | 'terminal') => void;
-  onRunTool: (tool: string) => void;
   onOpenHistory: () => void;
   onOpenBookmarks: () => void;
   onOpenDownloads: () => void;
@@ -49,16 +43,11 @@ interface CommandPaletteModalProps {
   onOpenClearData: () => void;
   onOpenShortcuts: () => void;
   onOpenMetadataDrawer: () => void;
-  onOpenOllamaSetup?: () => void;
-  onToggleCopilot?: () => void;
-  onOpenTrafficSniffer?: () => void;
-  onOpenHttpRepeater?: () => void;
-  onOpenPrivacyAudit?: () => void;
 }
 
 interface CommandItem {
   id: string;
-  category: 'Tabs' | 'Navigation' | 'Security & Tools' | 'System';
+  category: 'Tabs' | 'Navigation' | 'Tools' | 'System';
   title: string;
   subtitle?: string;
   shortcut?: string;
@@ -79,7 +68,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onToggleMuteTab,
   onOpenReaderMode,
   onSwitchMode,
-  onRunTool,
   onOpenHistory,
   onOpenBookmarks,
   onOpenDownloads,
@@ -87,11 +75,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onOpenClearData,
   onOpenShortcuts,
   onOpenMetadataDrawer,
-  onOpenOllamaSetup,
-  onToggleCopilot,
-  onOpenTrafficSniffer,
-  onOpenHttpRepeater,
-  onOpenPrivacyAudit,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -184,10 +167,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         },
       },
 
-      // Security & Tools
+      // Tools & Views
       {
         id: 'cmd-page-inspector',
-        category: 'Security & Tools',
+        category: 'Tools',
         title: 'Page Inspector & DOM Drawer',
         subtitle: 'View headings, numbered links, forms, cookies, and live metadata',
         shortcut: 'Ctrl+I',
@@ -195,32 +178,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         action: () => onOpenMetadataDrawer(),
       },
       {
-        id: 'cmd-sec-audit',
-        category: 'Security & Tools',
-        title: 'Run Passive Security Audit (sec-audit)',
-        subtitle: 'Audit CSP, CSRF tokens, secret leaks & tabnabbing',
-        icon: <Shield size={15} />,
-        action: () => onRunTool('sec-audit'),
-      },
-      {
-        id: 'cmd-recon',
-        category: 'Security & Tools',
-        title: 'Run Target Reconnaissance (recon)',
-        subtitle: 'Correlate response headers, endpoints & TLS ciphers',
-        icon: <Search size={15} />,
-        action: () => onRunTool('recon'),
-      },
-      {
-        id: 'cmd-cert',
-        category: 'Security & Tools',
-        title: 'Inspect TLS Certificate (cert)',
-        subtitle: 'Verify certificate chain, SAN entries, and expiration',
-        icon: <Lock size={15} />,
-        action: () => onRunTool('cert'),
-      },
-      {
         id: 'cmd-clear-data',
-        category: 'Security & Tools',
+        category: 'Tools',
         title: 'Clear Browsing Data',
         subtitle: 'Wipe cache, cookies, browsing history & download logs',
         shortcut: 'Ctrl+Shift+Del',
@@ -233,7 +192,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         id: 'cmd-switch-terminal',
         category: 'System',
         title: 'Toggle Terminal CLI Mode',
-        subtitle: 'Switch between graphical WebContents and hacker terminal console',
+        subtitle: 'Switch between graphical browser and interactive terminal',
         shortcut: 'Ctrl+`',
         icon: <Terminal size={15} />,
         action: () => onSwitchMode('terminal'),
@@ -279,50 +238,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         action: () => onOpenBookmarks(),
       },
       {
-        id: 'cmd-copilot',
-        category: 'System',
-        title: 'Toggle AI Copilot Sidebar',
-        subtitle: 'Chat with local Ollama LLM, summarize page, or audit code',
-        shortcut: 'Ctrl+J',
-        icon: <Bot size={15} />,
-        action: () => {
-          if (onToggleCopilot) onToggleCopilot();
-        },
-      },
-      {
-        id: 'cmd-traffic-sniffer',
-        category: 'Security & Tools',
-        title: 'Open Live Traffic Sniffer',
-        subtitle: 'Inspect HTTP requests, headers, latency, and vulnerabilities',
-        shortcut: 'Ctrl+Shift+T',
-        icon: <Activity size={15} />,
-        action: () => {
-          if (onOpenTrafficSniffer) onOpenTrafficSniffer();
-        },
-      },
-      {
-        id: 'cmd-repeater',
-        category: 'Security & Tools',
-        title: 'HTTP Request Repeater & Header Tamperer',
-        subtitle: 'Craft, replay, and tamper with raw HTTP requests bypassing browser CORS',
-        shortcut: 'Ctrl+Shift+E',
-        icon: <Send size={15} />,
-        action: () => {
-          if (onOpenHttpRepeater) onOpenHttpRepeater();
-        },
-      },
-      {
-        id: 'cmd-privacy-audit',
-        category: 'Security & Tools',
-        title: 'Privacy Health & Leak Diagnostics Suite',
-        subtitle: 'Audit WebRTC IP leaks, DNS privacy, canvas entropy, and tracking barriers',
-        shortcut: 'Ctrl+Shift+L',
-        icon: <Shield size={15} />,
-        action: () => {
-          if (onOpenPrivacyAudit) onOpenPrivacyAudit();
-        },
-      },
-      {
         id: 'cmd-downloads',
         category: 'System',
         title: 'Open Downloads',
@@ -341,20 +256,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         action: () => onOpenShortcuts(),
       },
       {
-        id: 'cmd-ollama-setup',
-        category: 'System',
-        title: 'Ollama AI Setup & Model Config',
-        subtitle: 'Configure local AI assistant, autonomous agents & on-device models',
-        icon: <Bot size={15} />,
-        action: () => {
-          if (onOpenOllamaSetup) onOpenOllamaSetup();
-        },
-      },
-      {
         id: 'cmd-settings',
         category: 'System',
         title: 'Browser Settings',
-        subtitle: 'Configure search engine, sandbox policies, theme & telemetry',
+        subtitle: 'Configure search engine, sandbox policies, theme & preferences',
         icon: <Settings size={15} />,
         action: () => onOpenSettings(),
       },
@@ -454,7 +359,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a command or search tabs (e.g. split, reader, mute, cert, recon)..."
+            placeholder="Type a command or search tabs (e.g. new tab, terminal, bookmarks, split)..."
             spellCheck={false}
           />
           <span className="cmd-esc-hint">Esc</span>

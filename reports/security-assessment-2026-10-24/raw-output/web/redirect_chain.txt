@@ -1,0 +1,21 @@
+=== HTTP REDIRECT CHAIN INSPECTION ===
+Timestamp: 2026-10-24T19:32:53+05:30
+Command: curl.exe -I -s -S --max-time 10 http://www.amankumarx1.xyz/
+
+Hop 1 (Initial Request):
+URL: http://www.amankumarx1.xyz/
+Protocol: HTTP/1.0
+Status: 308 Permanent Redirect
+Location: https://www.amankumarx1.xyz/
+Server: Vercel
+
+Hop 2 (Followed Redirect):
+URL: https://www.amankumarx1.xyz/
+Protocol: HTTP/1.1
+Status: 200 OK
+Server: Vercel
+
+Apex Redirect Check:
+Command: curl.exe -I -s -S --max-time 10 https://amankumarx1.xyz/
+Observation: Both apex (amankumarx1.xyz) and www subdomain (www.amankumarx1.xyz) route to the active portfolio web application.
+Redirect Handling Assessment: SECURE. No open redirects or unencrypted protocol downgrade detected.

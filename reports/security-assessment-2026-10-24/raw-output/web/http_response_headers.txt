@@ -1,0 +1,24 @@
+=== RAW HTTP HEADERS FOR HTTPS://WWW.AMANKUMARX1.XYZ/ ===
+Timestamp: 2026-10-24T19:32:39+05:30
+Command: curl.exe -I -s -S --max-time 10 https://www.amankumarx1.xyz/
+
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Access-Control-Allow-Origin: *
+Age: 481
+Cache-Control: public, max-age=0, must-revalidate
+Content-Disposition: inline
+Content-Length: 73190
+Content-Type: text/html; charset=utf-8
+Date: Sat, 24 Oct 2026 14:02:43 GMT
+Etag: "510c705077da7010f21bd0a975926552"
+Last-Modified: Sat, 24 Oct 2026 13:54:42 GMT
+Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Server: Vercel
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Vercel-Cache: HIT
+X-Vercel-Id: bom1::259gf-1792850563558-a2d3799ca336
+X-Xss-Protection: 1; mode=block

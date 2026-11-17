@@ -66,7 +66,7 @@ export class ErrorBoundary extends Component<Props, State> {
               gap: '6px',
               padding: '6px 14px',
               borderRadius: '6px',
-              background: 'var(--ds-cyan, #0284c7)',
+              background: 'var(--ds-accent, #F45B19)',
               color: '#ffffff',
               border: 'none',
               cursor: 'pointer',

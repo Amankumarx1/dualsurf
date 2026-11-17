@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import './index.css';
+import './dualsurf-redesign.css';
 import { setupBrowserBridge } from './mockBrowserBridge';
 
 // Initialize standalone browser bridge if running in Microsoft Edge / standard web browser

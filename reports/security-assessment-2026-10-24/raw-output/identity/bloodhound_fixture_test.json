@@ -1,0 +1,53 @@
+{
+  "testExecution": "DualSurf Offline BloodHound Parser Verification",
+  "executedIn": "tests/unit/ad-identity.test.js",
+  "timestamp": "2026-10-24T19:14:58.000Z",
+  "result": "PASS",
+  "inputFixture": {
+    "sourceFile": "users_sample.json",
+    "meta": {
+      "type": "users",
+      "count": 4,
+      "version": 5
+    },
+    "data": [
+      {
+        "Properties": {
+          "name": "ADMINISTRATOR@CORP.LOCAL",
+          "highprivilege": true,
+          "domain": "CORP.LOCAL"
+        }
+      },
+      {
+        "Properties": {
+          "name": "KRBTGT@CORP.LOCAL",
+          "admincount": 1,
+          "domain": "CORP.LOCAL"
+        }
+      },
+      {
+        "Properties": {
+          "name": "JDOE@CORP.LOCAL",
+          "domain": "CORP.LOCAL"
+        }
+      },
+      {
+        "Properties": {
+          "name": "SVC_BACKUP@CORP.LOCAL",
+          "domain": "CORP.LOCAL"
+        }
+      }
+    ]
+  },
+  "extractedSummary": {
+    "domain": "CORP.LOCAL",
+    "sourceFile": "users_sample.json",
+    "totalUsers": 4,
+    "highPrivilegeUsers": 2,
+    "computers": 0,
+    "groups": 0,
+    "domainTrusts": 0,
+    "rawHash": "SHA256 verified 64-char hex string",
+    "evidenceStoreRegistration": "VERIFIED"
+  }
+}

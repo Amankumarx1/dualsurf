@@ -1,0 +1,66 @@
+[
+  {
+    "id": "SEC-WEB-001",
+    "title": "Missing Content-Security-Policy (CSP) Header",
+    "affectedHostname": "www.amankumarx1.xyz",
+    "affectedPath": "/*",
+    "category": "Insecure HTTP Response Headers",
+    "severity": "MEDIUM",
+    "cvssScore": 5.4,
+    "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N",
+    "confidenceLevel": "HIGH",
+    "reproductionSteps": [
+      "1. Execute native curl command: curl.exe -I -s -S https://www.amankumarx1.xyz/",
+      "2. Observe returned HTTP response headers.",
+      "3. Verify that neither 'Content-Security-Policy' nor 'Content-Security-Policy-Report-Only' is present."
+    ],
+    "observedEvidence": "Headers include Strict-Transport-Security, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, and Permissions-Policy, but lack Content-Security-Policy.",
+    "expectedBehavior": "A Content-Security-Policy header restricting script execution, style sources, and frame ancestors should be returned on all HTML documents.",
+    "securityImpact": "Without a CSP, the application lacks defense-in-depth against client-side script injection and malicious inline script execution in the event of an XSS vulnerability.",
+    "remediation": "Add a Content-Security-Policy header in vercel.json headers section: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
+    "validationStatus": "CONFIRMED_VULNERABILITY",
+    "evidenceArtifact": "reports/security-assessment-2026-10-24/evidence/missing_csp_evidence.txt"
+  },
+  {
+    "id": "SEC-WEB-002",
+    "title": "Server Banner Information Disclosure (Vercel)",
+    "affectedHostname": "www.amankumarx1.xyz",
+    "affectedPath": "/*",
+    "category": "Information Disclosure",
+    "severity": "LOW",
+    "cvssScore": 2.6,
+    "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+    "confidenceLevel": "HIGH",
+    "reproductionSteps": [
+      "1. Execute: curl.exe -I https://www.amankumarx1.xyz/",
+      "2. Inspect the 'Server' and 'X-Vercel-Id' header fields."
+    ],
+    "observedEvidence": "Server: Vercel\nX-Vercel-Id: bom1::259gf-1792850563558-a2d3799ca336",
+    "expectedBehavior": "Generic or suppressed Server header to prevent reconnaissance of underlying hosting platform.",
+    "securityImpact": "Reveals the edge infrastructure provider (Vercel) and edge node geographic point of presence (bom1 - Mumbai).",
+    "remediation": "While standard for Vercel, consider stripping or obscuring custom platform headers via edge middleware if strict banner suppression is required by corporate policy.",
+    "validationStatus": "CONFIRMED_OBSERVATION",
+    "evidenceArtifact": "reports/security-assessment-2026-10-24/evidence/vercel_edge_headers.txt"
+  },
+  {
+    "id": "SEC-WEB-003",
+    "title": "Overly Permissive Wildcard Access-Control-Allow-Origin on HTML Document",
+    "affectedHostname": "www.amankumarx1.xyz",
+    "affectedPath": "/*",
+    "category": "Cross-Origin Resource Sharing (CORS)",
+    "severity": "LOW",
+    "cvssScore": 3.7,
+    "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
+    "confidenceLevel": "HIGH",
+    "reproductionSteps": [
+      "1. Execute: curl.exe -I https://www.amankumarx1.xyz/",
+      "2. Inspect Access-Control-Allow-Origin header."
+    ],
+    "observedEvidence": "Access-Control-Allow-Origin: *",
+    "expectedBehavior": "CORS headers should be scoped specifically to public static assets or API endpoints, rather than top-level HTML document responses.",
+    "securityImpact": "Permits arbitrary third-party web origins to read response bodies via XMLHttpRequest / fetch. While currently benign on this static portfolio, it establishes an insecure precedent if private dynamic content is later introduced.",
+    "remediation": "Remove the wildcard CORS header from HTML page responses or restrict Access-Control-Allow-Origin to trusted origins.",
+    "validationStatus": "CONFIRMED_OBSERVATION",
+    "evidenceArtifact": "reports/security-assessment-2026-10-24/evidence/cors_wildcard_evidence.txt"
+  }
+]

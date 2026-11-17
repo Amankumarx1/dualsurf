@@ -29,22 +29,14 @@ import {
   ShieldAlert,
   FileText,
   ChevronRight,
-  Send,
   Clock,
-  Zap,
   Trash2,
   Keyboard,
   BookOpen,
   Columns2,
   Command,
-  Bot,
-  Activity,
   Layers,
-  Cookie,
-  Fingerprint,
-  Network,
-  Wrench,
-  Database,
+  LayoutPanelLeft,
 } from 'lucide-react';
 import type { TabState, SystemInfo, HistoryEntry, BookmarkEntry, PageSecurityInfo, SearchEngine } from '@dualsurf/shared-types';
 
@@ -69,27 +61,14 @@ interface NavigationBarProps {
   onNewTab?: () => void;
   onDuplicateTab?: () => void;
   onOpenMetadataDrawer?: () => void;
-  onRunTool?: (toolName: string) => void;
   onOpenTabSearch?: () => void;
   onOpenClearData?: () => void;
   onOpenShortcuts?: () => void;
   onOpenReaderMode?: () => void;
   onOpenCommandPalette?: () => void;
   onToggleSplitTab?: (tabId: string) => void;
-  onOpenOllamaSetup?: () => void;
-  onToggleCopilot?: () => void;
-  isCopilotOpen?: boolean;
-  onToggleShieldDropdown?: () => void;
-  isShieldDropdownOpen?: boolean;
-  onOpenTrafficSniffer?: () => void;
-  onOpenProxyModal?: () => void;
-  activeProxyMode?: string;
-  onOpenCookieModal?: () => void;
-  onOpenUserAgentModal?: () => void;
-  onOpenAttackSurfaceModal?: () => void;
-  onOpenCyberTools?: () => void;
-  onOpenHttpRepeater?: () => void;
-  onOpenPrivacyAudit?: () => void;
+  onToggleSidebar?: () => void;
+  isSidebarCollapsed?: boolean;
 }
 
 interface OmniboxItem {
@@ -107,9 +86,6 @@ const BANG_CATALOG = [
   { prefix: '!yt', name: 'YouTube', template: (q: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}` },
   { prefix: '!g', name: 'Google', template: (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
   { prefix: '!d', name: 'DuckDuckGo', template: (q: string) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}` },
-  { prefix: '!cve', name: 'CVE Mitre', template: (q: string) => `https://cve.mitre.org/cgi-bin/cvekey.cgi?keyword=${encodeURIComponent(q)}` },
-  { prefix: '!shodan', name: 'Shodan', template: (q: string) => `https://www.shodan.io/search?query=${encodeURIComponent(q)}` },
-  { prefix: '!exploit', name: 'Exploit-DB', template: (q: string) => `https://www.exploit-db.com/search?q=${encodeURIComponent(q)}` },
   { prefix: '!so', name: 'StackOverflow', template: (q: string) => `https://stackoverflow.com/search?q=${encodeURIComponent(q)}` },
   { prefix: '!r', name: 'Reddit', template: (q: string) => `https://www.reddit.com/search/?q=${encodeURIComponent(q)}` },
 ];
@@ -134,27 +110,14 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
   onNewTab,
   onDuplicateTab,
   onOpenMetadataDrawer,
-  onRunTool,
   onOpenTabSearch,
   onOpenClearData,
   onOpenShortcuts,
   onOpenReaderMode,
   onOpenCommandPalette,
   onToggleSplitTab,
-  onOpenOllamaSetup,
-  onToggleCopilot,
-  isCopilotOpen = false,
-  onToggleShieldDropdown,
-  isShieldDropdownOpen = false,
-  onOpenTrafficSniffer,
-  onOpenProxyModal,
-  activeProxyMode = 'direct',
-  onOpenCookieModal,
-  onOpenUserAgentModal,
-  onOpenAttackSurfaceModal,
-  onOpenCyberTools,
-  onOpenHttpRepeater,
-  onOpenPrivacyAudit,
+  onToggleSidebar,
+  isSidebarCollapsed = false,
   searchEngine = 'google',
 }) => {
   const [urlInput, setUrlInput] = useState('');
@@ -475,8 +438,19 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
 
   return (
     <div className="nav-toolbar-row">
-      {/* Navigation history controls: Back, Forward, Reload, Home */}
+      {/* Navigation history controls: Sidebar Toggle, Back, Forward, Reload, Home */}
       <div className="nav-history-controls">
+        {onToggleSidebar && (
+          <button
+            className={`nav-action-btn toggle-sidebar-btn ${isSidebarCollapsed ? 'collapsed' : 'expanded'}`}
+            onClick={onToggleSidebar}
+            title={isSidebarCollapsed ? 'Expand Sidebar (Ctrl+B / Ctrl+\\)' : 'Collapse Sidebar (Ctrl+B / Ctrl+\\)'}
+            data-testid="nav-toggle-sidebar-btn"
+          >
+            <LayoutPanelLeft size={16} />
+          </button>
+        )}
+
         <button
           className="nav-action-btn"
           disabled={!activeTab?.canGoBack}
@@ -633,54 +607,6 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
                   </div>
                   <ChevronRight size={13} className="sec-arrow" />
                 </button>
-
-                <button
-                  className="sec-action-row-btn"
-                  onClick={() => {
-                    setIsSecurityOpen(false);
-                    if (onRunTool) onRunTool('recon');
-                  }}
-                  title="Run target reconnaissance against active tab"
-                >
-                  <Search size={14} />
-                  <div className="sec-btn-text">
-                    <span className="sec-btn-main">Target Reconnaissance (`recon`)</span>
-                    <span className="sec-btn-desc">Correlate response headers, endpoints &amp; ciphers</span>
-                  </div>
-                  <ChevronRight size={13} className="sec-arrow" />
-                </button>
-
-                <button
-                  className="sec-action-row-btn"
-                  onClick={() => {
-                    setIsSecurityOpen(false);
-                    if (onRunTool) onRunTool('sec-audit');
-                  }}
-                  title="Run passive security audit pipeline"
-                >
-                  <Shield size={14} />
-                  <div className="sec-btn-text">
-                    <span className="sec-btn-main">Passive Security Audit (`sec-audit`)</span>
-                    <span className="sec-btn-desc">Check CSP, CSRF tokens, secrets &amp; tabnabbing</span>
-                  </div>
-                  <ChevronRight size={13} className="sec-arrow" />
-                </button>
-
-                <button
-                  className="sec-action-row-btn"
-                  onClick={() => {
-                    setIsSecurityOpen(false);
-                    if (onRunTool) onRunTool('cert');
-                  }}
-                  title="Inspect TLS certificate and cipher suite"
-                >
-                  <Lock size={14} />
-                  <div className="sec-btn-text">
-                    <span className="sec-btn-main">Inspect TLS Certificate (`cert`)</span>
-                    <span className="sec-btn-desc">Check certificate issuer, validity &amp; SAN domains</span>
-                  </div>
-                  <ChevronRight size={13} className="sec-arrow" />
-                </button>
               </div>
             </div>
           )}
@@ -700,7 +626,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
           placeholder={
             !activeTab?.url || activeTab.url === 'about:blank' || activeTab.url.startsWith('dualsurf:')
               ? `Search ${searchEngine ? (searchEngine.charAt(0).toUpperCase() + searchEngine.slice(1)) : 'the web'} or enter a URL...`
-              : "Search or enter a URL (e.g. !gh, !w, !cve, or domain)..."
+              : "Search or enter a URL (e.g. !gh, !w, !yt, or domain)..."
           }
           spellCheck={false}
           autoComplete="off"
@@ -718,6 +644,26 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
               title="Clear input"
             >
               <X size={13} />
+            </button>
+          )}
+
+          {/* Zoom Level Indicator Badge when zoomed */}
+          {zoomLevel !== 100 && (
+            <button
+              className="address-tool-btn zoom-level-badge-btn"
+              onClick={handleResetZoom}
+              title={`Page Zoom: ${zoomLevel}% — Click to reset to 100%`}
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'var(--ds-accent, #F45B19)',
+                background: 'var(--ds-accent-soft, rgba(244, 91, 25, 0.12))',
+                borderRadius: '4px',
+                padding: '2px 5px',
+                marginRight: '2px',
+              }}
+            >
+              <span>{zoomLevel}%</span>
             </button>
           )}
 
@@ -812,29 +758,6 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
             <Download size={15} />
           </button>
         )}
-
-        {/* Cyber Shield Protection */}
-        {onToggleShieldDropdown && (
-          <button
-            className={`nav-action-btn ${isShieldDropdownOpen ? 'active' : ''}`}
-            onClick={onToggleShieldDropdown}
-            title="Cyber Shield Protection"
-          >
-            <ShieldCheck size={15} className={isShieldDropdownOpen ? 'text-cyan' : ''} />
-          </button>
-        )}
-
-        {/* Traffic Sniffer / Request Database */}
-        {onOpenTrafficSniffer && (
-          <button
-            className="nav-action-btn"
-            onClick={onOpenTrafficSniffer}
-            title="HTTP Traffic Sniffer & Request DB"
-          >
-            <Database size={15} />
-          </button>
-        )}
-
 
         {/* User Profile / Host Diagnostics Button & Popover */}
         <div className="nav-popover-anchor" ref={profileRef}>
@@ -989,139 +912,6 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
                   <BookOpen size={14} />
                   <span>Reader Mode</span>
                   <span className="menu-shortcut">Ctrl+Shift+R</span>
-                </button>
-              )}
-
-              {onOpenOllamaSetup && (
-                <button
-                  className="app-menu-item"
-                  onClick={() => {
-                    setIsAppMenuOpen(false);
-                    onOpenOllamaSetup();
-                  }}
-                >
-                  <Bot size={14} />
-                  <span>Ollama AI Setup &amp; Config</span>
-                </button>
-              )}
-
-              {onToggleCopilot && (
-                <button
-                  className="app-menu-item"
-                  onClick={() => {
-                    setIsAppMenuOpen(false);
-                    onToggleCopilot();
-                  }}
-                >
-                  <Bot size={14} />
-                  <span>DualSurf AI Copilot</span>
-                  <span className="menu-shortcut">Ctrl+J</span>
-                </button>
-              )}
-
-              {onOpenTrafficSniffer && (
-                <button
-                  className="app-menu-item"
-                  onClick={() => {
-                    setIsAppMenuOpen(false);
-                    onOpenTrafficSniffer();
-                  }}
-                >
-                  <Activity size={14} />
-                  <span>Live Traffic Sniffer</span>
-                </button>
-              )}
-
-              {onOpenProxyModal && (
-                <button
-                  className="app-menu-item"
-                  onClick={() => {
-                    setIsAppMenuOpen(false);
-                    onOpenProxyModal();
-                  }}
-                >
-                  <Layers size={14} />
-                  <span>Proxy &amp; Anonymity Switcher</span>
-                </button>
-              )}
-
-              {onOpenCookieModal && (
-                <button
-                  className="app-menu-item"
-                  onClick={() => {
-                    setIsAppMenuOpen(false);
-                    onOpenCookieModal();
-                  }}
-                >
-                  <Cookie size={14} />
-                  <span>Cookie &amp; Session Inspector</span>
-                </button>
-              )}
-
-              {onOpenUserAgentModal && (
-                <button
-                  className="app-menu-item"
-                  onClick={() => {
-                    setIsAppMenuOpen(false);
-                    onOpenUserAgentModal();
-                  }}
-                >
-                  <Fingerprint size={14} />
-                  <span>User-Agent &amp; Anti-Fingerprint</span>
-                </button>
-              )}
-
-              {onOpenAttackSurfaceModal && (
-                <button
-                  className="app-menu-item"
-                  onClick={() => {
-                    setIsAppMenuOpen(false);
-                    onOpenAttackSurfaceModal();
-                  }}
-                >
-                  <Network size={14} />
-                  <span>Attack Surface Visualizer</span>
-                </button>
-              )}
-
-              {onOpenCyberTools && (
-                <button
-                  className="app-menu-item"
-                  onClick={() => {
-                    setIsAppMenuOpen(false);
-                    onOpenCyberTools();
-                  }}
-                >
-                  <Wrench size={14} />
-                  <span>Cyber &amp; Dev Swiss Army Knife</span>
-                </button>
-              )}
-
-              {onOpenHttpRepeater && (
-                <button
-                  className="app-menu-item"
-                  onClick={() => {
-                    setIsAppMenuOpen(false);
-                    onOpenHttpRepeater();
-                  }}
-                >
-                  <Send size={14} />
-                  <span>HTTP Request Repeater</span>
-                  <span className="menu-shortcut">Ctrl+Shift+E</span>
-                </button>
-              )}
-
-              {onOpenPrivacyAudit && (
-                <button
-                  className="app-menu-item"
-                  onClick={() => {
-                    setIsAppMenuOpen(false);
-                    onOpenPrivacyAudit();
-                  }}
-                >
-                  <Shield size={14} />
-                  <span>Privacy Health &amp; Leak Audit</span>
-                  <span className="menu-shortcut">Ctrl+Shift+L</span>
                 </button>
               )}
 

@@ -1,0 +1,40 @@
+DualSurf Security Toolkit Assessment Environment Details
+=============================================================
+Audit Date: 2026-10-24T19:35:45+05:30
+Hostname: AMAN
+Username: amank
+Operating System: Windows 11 Enterprise / Pro (Win32NT 10.0.26300.0)
+Architecture: x64
+Active Shell: PowerShell 5.1 / Windows cmd.exe / DualSurf Integrated Terminal PTY
+Working Directory: c:\D Drive\Aman\DualSurf
+
+DualSurf Runtime Engine:
+------------------------
+DualSurf Desktop Version: 0.1.0
+Electron Engine: Electron 33.0.0
+Chromium Engine: Chrome 130.0.6723.44
+Node.js Runtime: Node.js 22.13.1 / 20.18.0
+Vite Dev Server: Vite 6.4.4 (Active on http://localhost:5173/)
+IPC Server: Active on \\.\pipe\dualsurf-amank
+
+Host Language Runtimes:
+-----------------------
+Python 3: Python 3.13.14 (C:\Users\amank\AppData\Local\Microsoft\WindowsApps\python.exe)
+Java JRE/JDK: OpenJDK 21.0.12.1 (C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot\bin\java.exe)
+.NET Runtime: .NET Core / Framework runtime available on host
+
+DNS & Network Configuration:
+----------------------------
+Local Gateway: 192.168.1.1 (local.airtelfiber.com)
+Local IP: 192.168.1.17
+DNS Server: 192.168.1.1
+Outbound Proxy: Direct (No upstream interception proxy configured)
+
+Target Resolution Summary:
+--------------------------
+Target FQDN: www.amankumarx1.xyz -> cname.vercel-dns.com
+Resolved Edge IPs: 76.76.21.164, 66.33.60.34
+CDN POP / Edge ID: bom1::259gf (Mumbai, India)
+Server Header: Vercel
+HTTPS Status: 200 OK
+HTTP Status: 308 Permanent Redirect to https://www.amankumarx1.xyz/

@@ -705,6 +705,16 @@ export class IpcServer extends EventEmitter {
           };
         }
 
+        case IPC_COMMANDS.DEVTOOLS_TOGGLE: {
+          const opened = this.controller.toggleDevTools(params?.tabId);
+          return {
+            protocolVersion: PROTOCOL_VERSION,
+            requestId,
+            success: true,
+            data: { opened },
+          };
+        }
+
         default: {
           return {
             protocolVersion: PROTOCOL_VERSION,

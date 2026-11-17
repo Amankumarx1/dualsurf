@@ -23,20 +23,13 @@ try {
 }
 
 const activePtys = new Map<string, any>();
-const activePtyMeta = new Map<string, { runtimeId: string; runtimeName: string; shellExe: string; cwd?: string }>();
+const activePtyMeta = new Map<string, { shellExe: string; cwd?: string }>();
+
 import type {
   BrowserSettings,
   SystemInfo,
   TabId,
   ClearBrowsingDataOptions,
-  ProxyConfig,
-  EditableCookie,
-  CveNewsItem,
-  RawHttpRequest,
-  RawHttpResponse,
-  InterceptRule,
-  InterceptedRequest,
-  LocalProxyServerStatus,
 } from '@dualsurf/shared-types';
 
 function findRepoRoot(startDir: string): string {
@@ -183,7 +176,14 @@ function confineToSandbox(targetPath: string | undefined, sandboxDir: string | u
 function resolveTerminalWorkingDir(requestedCwd?: string, userDefaultDir?: string, sandboxDir?: string): string {
   // If sandboxDir is provided and active, all paths are rooted and confined to sandboxDir
   if (sandboxDir && typeof sandboxDir === 'string' && sandboxDir.trim()) {
-    const cleanSandbox = path.resolve(sandboxDir.trim());
+    let cleanSandbox = sandboxDir.trim();
+    if (cleanSandbox === '~' || cleanSandbox === '$HOME') {
+      cleanSandbox = os.homedir();
+    } else if (cleanSandbox.startsWith('~/') || cleanSandbox.startsWith('~\\')) {
+      cleanSandbox = path.join(os.homedir(), cleanSandbox.slice(2));
+    } else {
+      cleanSandbox = path.resolve(cleanSandbox);
+    }
     if (fs.existsSync(cleanSandbox)) {
       if (!requestedCwd || requestedCwd === '~' || requestedCwd === '$HOME' || requestedCwd === '/') {
         return cleanSandbox;
@@ -281,12 +281,20 @@ async function createWindow() {
   mainWindow.on('maximize', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('dualsurf:windowMaximized', true);
+      mainWindow.webContents.send('dualsurf:windowResized');
     }
   });
 
   mainWindow.on('unmaximize', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('dualsurf:windowMaximized', false);
+      mainWindow.webContents.send('dualsurf:windowResized');
+    }
+  });
+
+  mainWindow.on('resize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('dualsurf:windowResized');
     }
   });
 
@@ -405,30 +413,6 @@ async function createWindow() {
   controller.on('tab:updated', (tab) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('dualsurf:tabUpdated', tab);
-    }
-  });
-
-  controller.on('shield:blocked', (data) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('dualsurf:shieldBlocked', data);
-    }
-  });
-
-  controller.on('shield:stats', (stats) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('dualsurf:shieldStats', stats);
-    }
-  });
-
-  controller.on('traffic:entry', (entry) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('dualsurf:trafficEntry', entry);
-    }
-  });
-
-  controller.on('intercept:pending', (req) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('dualsurf:interceptPending', req);
     }
   });
 
@@ -673,7 +657,15 @@ function setupIpcHandlers(ctrl: BrowserController) {
 
   ipcMain.handle('dualsurf:setWorkspaceSandboxDir', async (_event, sandboxPath: string) => {
     try {
-      const cleanPath = path.resolve(sandboxPath.trim());
+      let trimmed = sandboxPath.trim();
+      let cleanPath: string;
+      if (trimmed === '~' || trimmed === '$HOME') {
+        cleanPath = os.homedir();
+      } else if (trimmed.startsWith('~/') || trimmed.startsWith('~\\')) {
+        cleanPath = path.join(os.homedir(), trimmed.slice(2));
+      } else {
+        cleanPath = path.resolve(trimmed);
+      }
       if (!fs.existsSync(cleanPath)) {
         await fs.promises.mkdir(cleanPath, { recursive: true });
       }
@@ -707,26 +699,6 @@ function setupIpcHandlers(ctrl: BrowserController) {
       userDataPath: app.getPath('userData'),
       downloadsPath: ctrl.getSettings().defaultDownloadDir,
     };
-  });
-
-  ipcMain.handle('dualsurf:checkOllama', async (_event, host?: string) => {
-    const rawHost = host || ctrl.getSettings().ollama?.host || 'http://localhost:11434';
-    const cleanHost = rawHost.replace(/\/+$/, '');
-    const start = Date.now();
-    try {
-      const res = await fetch(`${cleanHost}/api/tags`, {
-        signal: AbortSignal.timeout(3000),
-      });
-      const latencyMs = Date.now() - start;
-      if (!res.ok) {
-        return { available: false, models: [], latencyMs, error: `HTTP ${res.status}` };
-      }
-      const data: any = await res.json();
-      const models = Array.isArray(data.models) ? data.models.map((m: any) => m.name || m.model || String(m)) : [];
-      return { available: true, models, latencyMs };
-    } catch (err: any) {
-      return { available: false, models: [], latencyMs: Date.now() - start, error: err?.message || 'Connection refused' };
-    }
   });
 
   ipcMain.handle('dualsurf:getBookmarks', () => {
@@ -862,9 +834,17 @@ function setupIpcHandlers(ctrl: BrowserController) {
   ipcMain.handle('dualsurf:listFiles', async (_event, targetDir?: string) => {
     try {
       const settings = ctrl.getSettings();
-      const sandboxRoot = (settings.hasGrantedWorkspaceAccess && settings.workspaceSandboxDir)
-        ? path.resolve(settings.workspaceSandboxDir)
-        : null;
+      let sandboxRoot: string | null = null;
+      if (settings.hasGrantedWorkspaceAccess && settings.workspaceSandboxDir) {
+        const raw = settings.workspaceSandboxDir.trim();
+        if (raw === '~' || raw === '$HOME') {
+          sandboxRoot = os.homedir();
+        } else if (raw.startsWith('~/') || raw.startsWith('~\\')) {
+          sandboxRoot = path.join(os.homedir(), raw.slice(2));
+        } else {
+          sandboxRoot = path.resolve(raw);
+        }
+      }
 
       let baseRoot = sandboxRoot || os.homedir();
       let resolvedDir = targetDir ? targetDir.trim() : baseRoot;
@@ -988,43 +968,12 @@ function setupIpcHandlers(ctrl: BrowserController) {
     }
   });
 
-  ipcMain.handle('dualsurf:checkTools', async () => {
-    const toolsToCheck = [
-      { id: 'nmap', name: 'Nmap', bin: 'nmap' },
-      { id: 'burp', name: 'Burp Suite', bin: 'burpsuite' },
-      { id: 'wireshark', name: 'Wireshark', bin: 'wireshark' },
-      { id: 'metasploit', name: 'Metasploit', bin: 'msfconsole' },
-      { id: 'sqlmap', name: 'sqlmap', bin: 'sqlmap' },
-      { id: 'nuclei', name: 'Nuclei', bin: 'nuclei' },
-      { id: 'hydra', name: 'Hydra', bin: 'hydra' },
-      { id: 'hashcat', name: 'Hashcat', bin: 'hashcat' },
-    ];
-
-    const results = [];
-    const isWin = process.platform === 'win32';
-    const whichCmd = isWin ? 'where.exe' : 'which';
-
-    for (const tool of toolsToCheck) {
-      let installed = false;
-      let toolLoc = '';
-      try {
-        const out = spawnSync(whichCmd, [tool.bin], { encoding: 'utf8', timeout: 1000 });
-        if (out.status === 0 && out.stdout && out.stdout.trim()) {
-          installed = true;
-          toolLoc = out.stdout.trim().split(/\r?\n/)[0];
-        }
-      } catch {}
-
-      results.push({
-        id: tool.id,
-        name: tool.name,
-        bin: tool.bin,
-        installed,
-        path: toolLoc,
-      });
+  ipcMain.handle('dualsurf:openDevTools', async (_event, tabId?: string) => {
+    try {
+      return ctrl.toggleDevTools(tabId);
+    } catch {
+      return false;
     }
-
-    return results;
   });
 
   ipcMain.handle('dualsurf:executeCommand', async (event, command: string) => {
@@ -1041,45 +990,32 @@ function setupIpcHandlers(ctrl: BrowserController) {
 
     let effectiveCommand = command.trim();
     const firstToken = effectiveCommand.split(/\s+/)[0].toLowerCase();
-    const DUALSURF_DIRECT_COMMANDS = new Set([
-      // Web Security, Recon & Audit
-      'recon', 'audit', 'sec-audit', 'vuln', 'security', 'cert', 'ssl', 'cors', 'tech',
-      'fingerprint', 'secrets', 'headers', 'header', 'cookies', 'cookie', 'storage',
-      'localstorage', 'endpoints', 'routes', 'export', 'report', 'scan', 'auto-audit',
-      'assess',
-      'ports', 'port',
-      'status', 'offline', 'tools',
-      // Blue Team & Defensive Security
-      'blue', 'roadmap', 'checklist', 'siem', 'logs', 'ioc', 'ti', 'case', 'cases', 'ir',
-      'hash', 'dfir', 'soar', 'mitre', 'attack', 'sigma', 'hunt', 'yara', 'evidence',
-      'workflow', 'metrics', 'catalog',
-      // Blue Team Host Tools & Telemetry
-      'edr', 'xdr', 'sysmon', 'sysinternals', 'osquery', 'velociraptor', 'hayabusa', 'chainsaw', 'zircolite',
-      'suricata', 'zeek', 'snort', 'arkime', 'volatility', 'clamav', 'ghidra', 'dmarc', 'spf', 'emailsec',
-      // Red Team & Offensive Operations
-      'red', 'roe', 'scope', 'finding', 'findings', 'pentest', 'purple', 'emulation', 'assessment', 'evidence',
-      // Red Team 7 Core Pillars & Operations Tools
-      'osint', 'subfinder', 'amass', 'theharvester', 'maltego',
-      'nmap', 'naabu', 'rustscan', 'masscan', 'wireshark', 'tshark', 'netcat', 'tcpdump', 'metasploit', 'msfconsole', 'nessus',
-      'burp', 'burpsuite', 'zap', 'zaproxy', 'postman', 'nuclei', 'ffuf', 'feroxbuster', 'gobuster', 'nikto', 'whatweb', 'arjun', 'dalfox', 'sqlmap',
-      'dnsrecon', 'findomain', 'assetfinder', 'dnsx', 'httpx', 'katana', 'exiftool',
-      'bloodhound', 'impacket', 'netexec', 'nxc', 'powershell', 'pwsh', 'enum4linux', 'enum4linux-ng', 'certipy', 'hashcat', 'john',
-      'prowler', 'scoutsuite', 'cloudsplaining', 'steampipe', 'trivy', 'grype', 'syft', 'checkov', 'terrascan', 'kube-bench', 'kubescape',
-      'atomic', 'caldera', 'retest', 'pillars',
-      // AI & Semantic Agent
-      'ask', 'summarize', 'summary', 'compare', 'extract', 'do', 'agent', 'search',
-      // Session & Data
-      'clear-data'
-    ]);
-
     if (fs.existsSync(cliEntry)) {
       if (effectiveCommand.startsWith('dualsurf ') || effectiveCommand === 'dualsurf') {
         const restArgs = effectiveCommand.slice('dualsurf'.length).trim();
         effectiveCommand = `node "${cliEntry}" ${restArgs}`.trim();
-      } else if (DUALSURF_DIRECT_COMMANDS.has(firstToken)) {
-        effectiveCommand = `node "${cliEntry}" ${effectiveCommand}`.trim();
+      } else if (effectiveCommand.startsWith('ds ') || effectiveCommand === 'ds') {
+        const restArgs = effectiveCommand.slice(2).trim();
+        effectiveCommand = `node "${cliEntry}" ds ${restArgs}`.trim();
       }
     }
+
+    const standardDirs = process.platform === 'win32' ? [
+      'C:\\Program Files\\Wireshark',
+      'C:\\Program Files (x86)\\Wireshark',
+      'C:\\Program Files (x86)\\Nmap',
+      'C:\\Program Files\\Nmap',
+      'C:\\Program Files\\Masscan',
+      'C:\\masscan',
+      'C:\\tools\\nc',
+      'C:\\tools\\ncat',
+      'C:\\tools\\nmap',
+      'C:\\tools\\wireshark',
+    ].filter((p) => fs.existsSync(p)) : ['/usr/local/bin', '/opt/homebrew/bin'];
+
+    const augmentedPath = process.platform === 'win32'
+      ? [...standardDirs, process.env.PATH || ''].filter(Boolean).join(';')
+      : [process.env.PATH || '', ...standardDirs].filter(Boolean).join(':');
 
     const shellArgs = hostShell.getArgs(effectiveCommand);
 
@@ -1113,656 +1049,56 @@ function setupIpcHandlers(ctrl: BrowserController) {
     });
   });
 
-  // Cyber Shield IPC handlers
-  ipcMain.handle('dualsurf:getShieldStats', (_event, tabId?: string) => {
-    return ctrl.getShieldStats(tabId);
-  });
-
-  ipcMain.handle('dualsurf:toggleShield', () => {
-    return ctrl.toggleShield();
-  });
-
-  ipcMain.handle('dualsurf:toggleShieldWhitelist', (_event, domain: string) => {
-    return ctrl.toggleShieldWhitelist(domain);
-  });
-
-  // Traffic Sniffer IPC handlers
-  ipcMain.handle('dualsurf:getTrafficLogs', (_event, filter?: { tabId?: string; search?: string; method?: string }) => {
-    return ctrl.getTrafficLogs(filter);
-  });
-
-  ipcMain.handle('dualsurf:clearTrafficLogs', () => {
-    ctrl.clearTrafficLogs();
-    return true;
-  });
-
-  // Dynamic Content Bounds for Vertical Tabs & Copilot Sidebar
+  // Dynamic Content Bounds for Vertical Tabs
   ipcMain.handle('dualsurf:setContentBounds', (_event, bounds: { x?: number; y?: number; width?: number; height?: number }) => {
     ctrl.setContentBounds(bounds);
     return true;
   });
 
-  // Ollama Model Puller with streaming progress
-  ipcMain.handle('dualsurf:pullOllamaModel', async (_event, modelName: string, host?: string) => {
-    const targetHost = (host || ctrl.getSettings().ollama?.host || 'http://127.0.0.1:11434').replace(/\/+$/, '');
-    try {
-      const response = await fetch(`${targetHost}/api/pull`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: modelName, stream: true }),
-      });
+  // Simple Native PTY Terminal Handlers
+  ipcMain.handle('dualsurf:ptyCreate', async (event, sessionId: string, _runtimeId?: string, options?: { cols?: number; rows?: number; cwd?: string }) => {
+    if (!isTrustedSender(event)) throw new Error('Unauthorized sender');
+    const cols = options?.cols || 80;
+    const rows = options?.rows || 24;
+    const cwd = options?.cwd && fs.existsSync(options.cwd) ? options.cwd : os.homedir();
 
-      if (!response.ok || !response.body) {
-        return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const data = JSON.parse(line);
-            let percent: number | undefined;
-            if (data.total && data.completed) {
-              percent = Math.round((data.completed / data.total) * 100);
-            }
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('dualsurf:ollamaPullProgress', {
-                status: data.status,
-                digest: data.digest,
-                total: data.total,
-                completed: data.completed,
-                percent,
-                error: data.error,
-              });
-            }
-          } catch { }
-        }
-      }
-
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
-
-  // Ollama Copilot Streaming Chat
-  ipcMain.handle('dualsurf:copilotChat', async (_event, messages: any[], model?: string, host?: string) => {
-    const targetHost = (host || ctrl.getSettings().ollama?.host || 'http://127.0.0.1:11434').replace(/\/+$/, '');
-    const activeModel = model || ctrl.getSettings().ollama?.model || 'llama3.2';
-
-    try {
-      const response = await fetch(`${targetHost}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: activeModel,
-          messages,
-          stream: true,
-        }),
-      });
-
-      if (!response.ok || !response.body) {
-        return { success: false, error: `Ollama error: HTTP ${response.status} ${response.statusText}` };
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let fullContent = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const data = JSON.parse(line);
-            const token = data.message?.content || '';
-            fullContent += token;
-            if (token && mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('dualsurf:copilotToken', token);
-            }
-          } catch { }
-        }
-      }
-
-      return { success: true, content: fullContent };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
-
-  // Proxy Switcher & Anonymity Engine
-  ipcMain.handle('dualsurf:setProxy', async (_event, config: ProxyConfig) => {
-    try {
-      let proxyRules = '';
-      if (config.mode === 'tor') {
-        proxyRules = 'socks5://127.0.0.1:9050';
-      } else if (config.mode === 'burp') {
-        proxyRules = 'http://127.0.0.1:8080';
-      } else if (config.mode === 'custom' && config.server) {
-        proxyRules = config.server;
-      }
-
-      const proxyBypassRules =
-        config.bypassList && config.bypassList.length > 0
-          ? config.bypassList.join(';')
-          : '<local>';
-
-      await session.defaultSession.setProxy({
-        proxyRules,
-        proxyBypassRules,
-      });
-
-      ctrl.updateSettings({ proxy: config });
-      return true;
-    } catch (err: any) {
-      console.warn('[Main] setProxy error:', err.message);
-      return false;
-    }
-  });
-
-  // User-Agent & Anti-Fingerprint Cloak
-  ipcMain.handle('dualsurf:setUserAgent', async (_event, userAgent: string, profileId?: string) => {
-    try {
-      if (userAgent) {
-        session.defaultSession.setUserAgent(userAgent);
-      }
-      if (profileId) {
-        ctrl.updateSettings({ activeUserAgentId: profileId });
-      }
-      return true;
-    } catch (err: any) {
-      console.warn('[Main] setUserAgent error:', err.message);
-      return false;
-    }
-  });
-
-  ipcMain.handle('dualsurf:toggleAntiFingerprint', async (_event, enabled: boolean) => {
-    try {
-      ctrl.updateSettings({ antiFingerprintEnabled: enabled });
-      return true;
-    } catch (err: any) {
-      console.warn('[Main] toggleAntiFingerprint error:', err.message);
-      return false;
-    }
-  });
-
-  // Burp-Style Cookie Inspector & Editor
-  ipcMain.handle('dualsurf:getCookies', async (_event, targetUrl?: string) => {
-    try {
-      const filter = targetUrl ? { url: targetUrl } : {};
-      const electronCookies = await session.defaultSession.cookies.get(filter);
-      const cookies: EditableCookie[] = electronCookies.map((c) => ({
-        name: c.name,
-        value: c.value,
-        domain: c.domain || '',
-        path: c.path || '/',
-        secure: Boolean(c.secure),
-        httpOnly: Boolean(c.httpOnly),
-        sameSite: (c.sameSite as any) || 'unspecified',
-        expirationDate: c.expirationDate,
-      }));
-      return cookies;
-    } catch (err: any) {
-      console.warn('[Main] getCookies error:', err.message);
-      return [];
-    }
-  });
-
-  ipcMain.handle('dualsurf:setCookie', async (_event, cookie: EditableCookie, targetUrl: string) => {
-    try {
-      const sameSiteMap: Record<string, 'unspecified' | 'no_restriction' | 'lax' | 'strict'> = {
-        unspecified: 'unspecified',
-        no_restriction: 'no_restriction',
-        lax: 'lax',
-        strict: 'strict',
-      };
-      await session.defaultSession.cookies.set({
-        url: targetUrl,
-        name: cookie.name,
-        value: cookie.value,
-        domain: cookie.domain.startsWith('.') ? cookie.domain.slice(1) : cookie.domain,
-        path: cookie.path || '/',
-        secure: cookie.secure,
-        httpOnly: cookie.httpOnly,
-        sameSite: sameSiteMap[cookie.sameSite || 'unspecified'] || 'unspecified',
-        expirationDate: cookie.expirationDate,
-      });
-      return true;
-    } catch (err: any) {
-      console.warn('[Main] setCookie error:', err.message);
-      return false;
-    }
-  });
-
-  ipcMain.handle('dualsurf:removeCookie', async (_event, url: string, name: string) => {
-    try {
-      await session.defaultSession.cookies.remove(url, name);
-      return true;
-    } catch (err: any) {
-      console.warn('[Main] removeCookie error:', err.message);
-      return false;
-    }
-  });
-
-  // Burp-Style Raw HTTP Repeater (Node-based socket bypasses CORS and SameSite restrictions)
-  ipcMain.handle('dualsurf:sendRawRequest', async (_event, req: RawHttpRequest): Promise<RawHttpResponse> => {
-    const startTime = Date.now();
-    try {
-      const response = await fetch(req.url, {
-        method: req.method || 'GET',
-        headers: req.headers || {},
-        body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
-      });
-
-      const latencyMs = Date.now() - startTime;
-      const respHeaders: Record<string, string> = {};
-      response.headers.forEach((val, key) => {
-        respHeaders[key] = val;
-      });
-
-      const bodyText = await response.text();
-
-      return {
-        success: true,
-        status: response.status,
-        statusText: response.statusText,
-        headers: respHeaders,
-        body: bodyText,
-        latencyMs,
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        error: err.message,
-        latencyMs: Date.now() - startTime,
-      };
-    }
-  });
-
-  // --- In-Line Intercepting Proxy & Breakpoint Handlers (Sprint 1) ---
-  ipcMain.handle('dualsurf:proxy:getRules', async () => {
-    return ctrl.getInterceptRules();
-  });
-
-  ipcMain.handle('dualsurf:proxy:setRules', async (_event, rules: InterceptRule[]) => {
-    ctrl.setInterceptRules(rules);
-    return true;
-  });
-
-  ipcMain.handle('dualsurf:proxy:toggleBreakpoint', async (_event, active?: boolean) => {
-    return ctrl.toggleBreakpoint(active);
-  });
-
-  ipcMain.handle('dualsurf:proxy:getPendingIntercepts', async () => {
-    return ctrl.getPendingIntercepts();
-  });
-
-  ipcMain.handle('dualsurf:proxy:forwardIntercept', async (_event, id: string, modifiedHeaders?: Record<string, string>) => {
-    return ctrl.forwardIntercept(id, modifiedHeaders);
-  });
-
-  ipcMain.handle('dualsurf:proxy:dropIntercept', async (_event, id: string) => {
-    return ctrl.dropIntercept(id);
-  });
-
-  ipcMain.handle('dualsurf:proxy:startServer', async (_event, port?: number, host?: string) => {
-    return await ctrl.startLocalProxy(port, host);
-  });
-
-  ipcMain.handle('dualsurf:proxy:stopServer', async () => {
-    await ctrl.stopLocalProxy();
-    return true;
-  });
-
-  ipcMain.handle('dualsurf:proxy:getStatus', async () => {
-    return ctrl.getLocalProxyStatus();
-  });
-
-  // Live Threat / CVE Radar Feed for Dashboard
-  ipcMain.handle('dualsurf:getCveNews', async (): Promise<CveNewsItem[]> => {
-    return [
-      {
-        id: 'cve-1',
-        cveId: 'CVE-2025-21298',
-        title: 'Windows OLE Remote Code Execution Vulnerability',
-        severity: 'CRITICAL',
-        score: 9.8,
-        description: 'Vulnerability in Windows OLE allows remote unauthenticated attackers to execute arbitrary code via specially crafted email messages or file attachments.',
-        affected: 'Windows 11, Windows 10, Windows Server 2022',
-        publishedDate: '2025-02-11',
-        link: 'https://nvd.nist.gov/vuln/detail/CVE-2025-21298',
-      },
-      {
-        id: 'cve-2',
-        cveId: 'CVE-2025-24813',
-        title: 'Apache Tomcat Session Deserialization RCE',
-        severity: 'CRITICAL',
-        score: 9.8,
-        description: 'Incomplete validation in session persistence manager enables remote code execution when unauthenticated attackers supply crafted serialized session payloads.',
-        affected: 'Apache Tomcat 9.x, 10.x, 11.0.0-M1',
-        publishedDate: '2025-02-04',
-        link: 'https://nvd.nist.gov/vuln/detail/CVE-2025-24813',
-      },
-      {
-        id: 'cve-3',
-        cveId: 'CVE-2025-0411',
-        title: 'Chromium V8 Engine Out-of-Bounds Memory Corruption',
-        severity: 'HIGH',
-        score: 8.8,
-        description: 'Out-of-bounds read/write in Google Chrome and Chromium V8 JavaScript JIT compiler allows sandbox escape and remote code execution via malicious HTML pages.',
-        affected: 'Chromium < 132.0.6834.83',
-        publishedDate: '2025-01-28',
-        link: 'https://nvd.nist.gov/vuln/detail/CVE-2025-0411',
-      },
-      {
-        id: 'cve-4',
-        cveId: 'CVE-2025-0282',
-        title: 'Ivanti Connect Secure Stack Buffer Overflow',
-        severity: 'CRITICAL',
-        score: 9.0,
-        description: 'Buffer overflow in the web management portal allows an unauthenticated remote attacker to achieve root code execution via crafted web requests.',
-        affected: 'Ivanti Connect Secure (ICS) & Policy Secure (IPS)',
-        publishedDate: '2025-01-16',
-        link: 'https://nvd.nist.gov/vuln/detail/CVE-2025-0282',
-      },
-      {
-        id: 'cve-5',
-        cveId: 'CVE-2025-22457',
-        title: 'OpenSSL Signature Timing Side-Channel Disclose',
-        severity: 'MEDIUM',
-        score: 6.5,
-        description: 'Timing side-channel in ECDSA signature verification allows local or adjacent network attackers to recover private ECC keys during TLS handshakes.',
-        affected: 'OpenSSL 3.0.x, 3.1.x, 3.2.x',
-        publishedDate: '2025-01-14',
-        link: 'https://nvd.nist.gov/vuln/detail/CVE-2025-22457',
-      },
-    ];
-  });
-
-  // --------------------------------------------------------------------------
-  // KALI LINUX OPERATIONS & PTY-BACKED REAL TERMINAL IPC
-  // --------------------------------------------------------------------------
-  const cliToolsDir = getCliToolsDir();
-
-  const tempKaliScripts = new Map<string, string>();
-
-  ipcMain.handle('dualsurf:ptyCreate', async (_event, sessionId: string, runtimeId: string, options?: { cols?: number; rows?: number; cwd?: string }) => {
-    const cols = options?.cols || 100;
-    const rows = options?.rows || 30;
-    const userSettings = ctrl.getSettings();
-    const sandboxRoot = (userSettings.hasGrantedWorkspaceAccess && userSettings.workspaceSandboxDir)
-      ? path.resolve(userSettings.workspaceSandboxDir)
-      : undefined;
-    const effectiveCwd = resolveTerminalWorkingDir(options?.cwd, userSettings.terminalDefaultWorkingDir, sandboxRoot);
-
-    // Preserve active session across mode switches if already running
     if (activePtys.has(sessionId)) {
       const meta = activePtyMeta.get(sessionId);
       return {
         success: true,
-        ptyId: sessionId,
-        runtime: meta?.runtimeId || runtimeId,
-        runtimeName: meta?.runtimeName || 'Active Session',
-        shellExe: meta?.shellExe,
-        cwd: meta?.cwd || effectiveCwd,
+        sessionId,
+        shell: meta?.shellExe,
+        cwd: meta?.cwd || cwd,
         isReattached: true,
       };
     }
 
-    let shellExe = process.platform === 'win32' ? 'powershell.exe' : '/bin/bash';
-    let shellArgs: string[] = [];
-    let runtimeName = 'Kali Linux (WSL Sandboxed)';
+    const hostShell = resolveHostShell();
+    const shellExe = hostShell.path;
+    const shellArgs: string[] = [];
 
-    // Dynamically query runtime manager for genuine WSL distros
-    let effectiveDistro = 'kali-linux';
-    let wslAvailable = false;
-    let hasKaliDistro = false;
-    try {
-      const { kaliRuntimeManager } = await import(pathToFileURL(path.join(cliToolsDir, 'kaliManager.js')).href);
-      const runtimes = kaliRuntimeManager.probeAvailableRuntimes();
-      const activeRuntime = kaliRuntimeManager.getActiveRuntime();
-      if (activeRuntime.wslDistroName) effectiveDistro = activeRuntime.wslDistroName;
-      const wslRuntime = runtimes.find((r: any) => r.id === 'wsl-kali');
-      if (wslRuntime) {
-        if (wslRuntime.status === 'online' || (wslRuntime.status as string) === 'ONLINE') {
-          wslAvailable = true;
-          hasKaliDistro = true;
-        } else if (wslRuntime.wslDistroName) {
-          wslAvailable = true;
-          hasKaliDistro = false;
-          effectiveDistro = wslRuntime.wslDistroName;
-        }
-      }
-    } catch {}
-
-    const preferredShell = (runtimeId === 'default' || runtimeId === 'host-local' || !runtimeId)
-      ? (userSettings.defaultShell || 'default')
-      : runtimeId;
-
-    let tempKaliScript: string | null = null;
-
-    if (process.platform === 'win32') {
-      if (preferredShell === 'wsl-kali' || preferredShell === 'kali' || preferredShell === 'wsl') {
-        if (!wslAvailable) {
-          return {
-            success: false,
-            ptyId: sessionId,
-            error: 'WSL 2 Linux environment is not installed on this system. To use Linux, install WSL with "wsl --install" in PowerShell or select Windows PowerShell or Git Bash.',
-          };
-        }
-        shellExe = 'wsl.exe';
-        if (options?.cwd && options.cwd !== '~' && options.cwd !== '$HOME') {
-          shellArgs = ['-d', effectiveDistro, '--cd', effectiveCwd];
-        } else {
-          // Default to genuine Linux user home directory (~ in distro)
-          shellArgs = ['-d', effectiveDistro, '--cd', '~'];
-        }
-        runtimeName = hasKaliDistro ? `Kali Linux (WSL 2: ${effectiveDistro})` : `Linux Subsystem (WSL 2: ${effectiveDistro})`;
-      } else if (preferredShell === 'container-kali') {
-        shellExe = 'docker';
-        shellArgs = ['exec', '-it', 'kali', '/bin/bash'];
-        runtimeName = 'Container (Kali Linux)';
-      } else if (preferredShell === 'bash' || preferredShell === 'git-bash') {
-        const bashCandidate = resolveHostShell('bash');
-        if (bashCandidate.type !== 'bash') {
-          return {
-            success: false,
-            ptyId: sessionId,
-            error: 'Git Bash was not found in standard installation paths. Please install Git for Windows or select PowerShell.',
-          };
-        }
-        shellExe = bashCandidate.path;
-        shellArgs = ['--login', '-i'];
-        runtimeName = bashCandidate.name;
-      } else if (preferredShell === 'cmd') {
-        const cmdCandidate = resolveHostShell('cmd');
-        shellExe = cmdCandidate.path;
-        shellArgs = [];
-        runtimeName = cmdCandidate.name;
-      } else {
-        // PowerShell Kali-Linux Emulation Layer (Exact Kali Terminal experience)
-        const psCandidate = resolveHostShell('powershell');
-        shellExe = psCandidate.path;
-        tempKaliScript = path.join(app.getPath('temp'), `dualsurf_kali_init_${sessionId}.ps1`);
-        tempKaliScripts.set(sessionId, tempKaliScript);
-
-        const kaliScriptBody = `$env:KALI_ROOT = '${effectiveCwd.replace(/'/g, "''")}'
-$env:USER = 'kali'
-$env:USERNAME = 'kali'
-$env:LOGNAME = 'kali'
-$env:HOME = $env:KALI_ROOT
-$env:USERPROFILE = $env:KALI_ROOT
-$global:IS_KALI_ROOT = $false
-
-Write-Host "\`e[1;34m" -NoNewline
-Write-Host "  .............."
-Write-Host "             ..,;:ccc,."
-Write-Host "           ......''';lxO."
-Write-Host "  .....''''..........,:ld;"
-Write-Host "             .',;;:ccc;..:ko."
-Write-Host "          ..:::clllcccc:;:lo:."
-Write-Host "        ......''''...,:lx:"
-Write-Host "                 .';:clc:."
-Write-Host "\`e[0m" -NoNewline
-Write-Host "\`e[1;36m┌── Kali GNU/Linux Rolling 2026.1 (WSL Sandboxed Jail)\`e[0m"
-Write-Host "\`e[90m├── System: \`e[32mLinux dualsurf 6.6.137-kali-amd64\`e[0m"
-Write-Host "\`e[90m├── Sandbox Root: \`e[33m$($env:KALI_ROOT)\`e[0m"
-Write-Host "\`e[90m└── Boundary: \`e[36mRestricted to granted folder ('sudo su' enabled)\`e[0m\`n"
-
-function global:prompt {
-  $cur = (Get-Location).Path
-  $root = $env:KALI_ROOT
-  if ($cur.ToLower().StartsWith($root.ToLower())) {
-    $rel = $cur.Substring($root.Length).TrimStart('\\','/').Replace('\\','/')
-    if ($rel -eq '') { $pathDisplay = '~' } else { $pathDisplay = '~/' + $rel }
-  } else {
-    Set-Location $root
-    $pathDisplay = '~'
-  }
-  $uName = if ($global:IS_KALI_ROOT) { 'root' } else { 'kali' }
-  $sym = if ($global:IS_KALI_ROOT) { '#' } else { '$' }
-  $uCol = if ($global:IS_KALI_ROOT) { "\`e[1;31m" } else { "\`e[1;34m" }
-  "\`e[1;34m┌──(\${uCol}\${uName}\`e[1;37m㉿\`e[1;34mdualsurf\`e[1;34m)-[\`e[1;37m\${pathDisplay}\`e[1;34m]\`n\`e[1;34m└─\`e[1;31m\${sym}\`e[0m "
-}
-
-function global:sudo {
-  param([Parameter(ValueFromRemainingArguments=$true)]$cmdArgs)
-  if ($cmdArgs.Count -eq 0 -or $cmdArgs[0] -eq 'su' -or $cmdArgs[0] -eq '-i' -or $cmdArgs[0] -eq '-s') {
-    $global:IS_KALI_ROOT = $true
-    $env:USER = 'root'
-    $env:USERNAME = 'root'
-    Write-Host "[*] Elevated to root inside Kali sandbox jail." -ForegroundColor DarkCyan
-    return
-  }
-  & $cmdArgs[0] @($cmdArgs[1..($cmdArgs.Count-1)])
-}
-
-function global:su {
-  param([Parameter(ValueFromRemainingArguments=$true)]$cmdArgs)
-  $global:IS_KALI_ROOT = $true
-  $env:USER = 'root'
-  $env:USERNAME = 'root'
-  Write-Host "[*] Switched to root user (Kali sandbox jail)." -ForegroundColor DarkCyan
-}
-
-function global:exit {
-  if ($global:IS_KALI_ROOT) {
-    $global:IS_KALI_ROOT = $false
-    $env:USER = 'kali'
-    $env:USERNAME = 'kali'
-    Write-Host "[*] Dropped root privileges. Returned to user kali." -ForegroundColor DarkGray
-    return
-  }
-  [System.Environment]::Exit(0)
-}
-
-function global:cd {
-  param([string]$target = '')
-  $root = $env:KALI_ROOT
-  if (-not $target -or $target -eq '~' -or $target -eq '/' -or $target -eq '\\') {
-    Set-Location $root
-    return
-  }
-  $resolved = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($target)
-  $full = [System.IO.Path]::GetFullPath($resolved)
-  $rootFull = [System.IO.Path]::GetFullPath($root)
-  if (-not $full.ToLower().StartsWith($rootFull.ToLower())) {
-    Write-Host "dualsurf-jail: cd: permission denied: cannot escape sandboxed folder ($rootFull)" -ForegroundColor Red
-    Set-Location $root
-    return
-  }
-  if (Test-Path $full -PathType Container) {
-    Set-Location $full
-  } else {
-    Write-Host "bash: cd: $target: No such file or directory" -ForegroundColor Red
-  }
-}
-Set-Alias -Name chdir -Value cd -Option AllScope
-
-function global:whoami { if ($global:IS_KALI_ROOT) { "root" } else { "kali" } }
-function global:hostname { "dualsurf" }
-function global:uname {
-  param([Parameter(ValueFromRemainingArguments=$true)]$args)
-  "Linux dualsurf 6.6.137-kali-amd64 #1 SMP PREEMPT_DYNAMIC Kali 6.6.137-1kali1 (2026-02-15) x86_64 GNU/Linux"
-}
-function global:id {
-  if ($global:IS_KALI_ROOT) {
-    "uid=0(root) gid=0(root) groups=0(root)"
-  } else {
-    "uid=1000(kali) gid=1000(kali) groups=1000(kali),27(sudo),100(users)"
-  }
-}
-function global:pwd {
-  $cur = (Get-Location).Path
-  $root = $env:KALI_ROOT
-  if ($cur.ToLower().StartsWith($root.ToLower())) {
-    $rel = $cur.Substring($root.Length).TrimStart('\\','/').Replace('\\','/')
-    if ($rel -eq '') { "/" } else { "/" + $rel }
-  } else { "/" }
-}
-`;
-        try {
-          fs.writeFileSync(tempKaliScript, kaliScriptBody, 'utf8');
-          shellArgs = ['-NoLogo', '-NoExit', '-ExecutionPolicy', 'Bypass', '-File', tempKaliScript];
-        } catch {
-          shellArgs = ['-NoLogo'];
-        }
-        runtimeName = 'Kali Linux (WSL Sandboxed)';
-      }
-    } else {
-      shellExe = process.env.SHELL || '/bin/bash';
-      shellArgs = ['-i'];
-      runtimeName = `POSIX Shell (${path.basename(shellExe)})`;
+    if (hostShell.type === 'powershell') {
+      shellArgs.push('-NoLogo');
     }
 
+    const env: any = {
+      ...process.env,
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+    };
+
     try {
-      const ptyEnv = {
-        ...process.env,
-        TERM: 'xterm-256color',
-        COLORTERM: 'truecolor',
-        USER: 'kali',
-        USERNAME: 'kali',
-        LOGNAME: 'kali',
-        HOME: effectiveCwd,
-        USERPROFILE: effectiveCwd,
-        KALI_ROOT: effectiveCwd,
-        KALI_SANDBOX: '1',
-      };
-
-      const cleanupTempScript = () => {
-        const scriptPath = tempKaliScripts.get(sessionId);
-        if (scriptPath) {
-          try {
-            if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath);
-          } catch {}
-          tempKaliScripts.delete(sessionId);
-        }
-      };
-
-      if (ptyModule && typeof ptyModule.spawn === 'function') {
+      if (ptyModule) {
         const ptyProcess = ptyModule.spawn(shellExe, shellArgs, {
           name: 'xterm-256color',
           cols,
           rows,
-          cwd: effectiveCwd,
-          env: ptyEnv,
+          cwd,
+          env,
         });
+
+        activePtys.set(sessionId, ptyProcess);
+        activePtyMeta.set(sessionId, { shellExe, cwd });
 
         ptyProcess.onData((data: string) => {
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1770,33 +1106,40 @@ function global:pwd {
           }
         });
 
-        ptyProcess.onExit(({ exitCode }: any) => {
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send(`dualsurf:ptyExit:${sessionId}`, exitCode ?? 0);
-          }
-          cleanupTempScript();
+        ptyProcess.onExit(({ exitCode }: { exitCode: number }) => {
           activePtys.delete(sessionId);
           activePtyMeta.delete(sessionId);
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send(`dualsurf:ptyExit:${sessionId}`, exitCode);
+          }
         });
 
-        activePtys.set(sessionId, ptyProcess);
-        activePtyMeta.set(sessionId, { runtimeId, runtimeName, shellExe, cwd: effectiveCwd });
         return {
           success: true,
-          ptyId: sessionId,
-          runtime: runtimeId,
-          runtimeName,
-          shellExe,
-          cwd: effectiveCwd,
-          username: 'kali',
-          hostname: 'dualsurf',
+          sessionId,
+          shell: hostShell.name,
+          cwd,
         };
       } else {
         const child = spawn(shellExe, shellArgs, {
-          cwd: effectiveCwd,
-          env: ptyEnv,
+          cwd,
+          env,
           stdio: ['pipe', 'pipe', 'pipe'],
+          shell: false,
         });
+
+        const fallbackPty = {
+          write: (data: string) => {
+            child.stdin?.write(data);
+          },
+          resize: () => {},
+          kill: () => {
+            child.kill();
+          },
+        };
+
+        activePtys.set(sessionId, fallbackPty);
+        activePtyMeta.set(sessionId, { shellExe, cwd });
 
         child.stdout?.on('data', (d: Buffer) => {
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1810,39 +1153,24 @@ function global:pwd {
           }
         });
 
-        child.on('close', (code: number) => {
+        child.on('exit', (code: number) => {
+          activePtys.delete(sessionId);
+          activePtyMeta.delete(sessionId);
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send(`dualsurf:ptyExit:${sessionId}`, code ?? 0);
           }
-          cleanupTempScript();
-          activePtys.delete(sessionId);
-          activePtyMeta.delete(sessionId);
         });
-
-        activePtys.set(sessionId, {
-          write: (d: string) => child.stdin?.write(d),
-          resize: () => {},
-          kill: () => {
-            child.kill();
-            cleanupTempScript();
-          },
-        });
-        activePtyMeta.set(sessionId, { runtimeId, runtimeName, shellExe, cwd: effectiveCwd });
 
         return {
           success: true,
-          ptyId: sessionId,
-          runtime: runtimeId,
-          runtimeName,
-          shellExe,
-          cwd: effectiveCwd,
-          username: 'kali',
-          hostname: 'dualsurf',
+          sessionId,
+          shell: hostShell.name,
+          cwd,
         };
       }
     } catch (err: any) {
-      console.error('[Main] PTY Spawn Error:', err.message);
-      return { success: false, ptyId: sessionId, error: err.message };
+      console.error('[Main] ptyCreate error:', err);
+      return { success: false, error: err.message };
     }
   });
 
@@ -1872,11 +1200,6 @@ function global:pwd {
       try {
         p.kill();
       } catch {}
-      const scriptPath = tempKaliScripts.get(sessionId);
-      if (scriptPath) {
-        try { if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath); } catch {}
-        tempKaliScripts.delete(sessionId);
-      }
       activePtys.delete(sessionId);
       activePtyMeta.delete(sessionId);
       return true;
@@ -1891,355 +1214,6 @@ function global:pwd {
       return true;
     }
     return false;
-  });
-
-  ipcMain.handle('dualsurf:getRealSystemMetrics', async () => {
-    const totalMem = os.totalmem();
-    const freeMem = os.freemem();
-    const usedMem = totalMem - freeMem;
-    const uptime = os.uptime();
-    const cpus = os.cpus();
-
-    const formatBytes = (bytes: number) => (bytes / (1024 * 1024 * 1024)).toFixed(1) + 'G';
-    const hours = Math.floor(uptime / 3600);
-    const mins = Math.floor((uptime % 3600) / 60);
-    const secs = Math.floor(uptime % 60);
-    const uptimeStr = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-
-    const processes: { pid: string; user: string; cpu: string; mem: string; cmd: string }[] = [];
-    try {
-      if (process.platform === 'win32') {
-        const out = spawnSync('tasklist.exe', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', timeout: 2000 });
-        if (out.stdout) {
-          const lines = out.stdout.split(/\r?\n/).filter(Boolean);
-          for (let i = 0; i < Math.min(lines.length, 12); i++) {
-            const parts = lines[i].split('","').map((s) => s.replace(/"/g, ''));
-            if (parts.length >= 5) {
-              processes.push({
-                pid: parts[1],
-                user: os.userInfo?.().username || 'user',
-                cpu: (Math.random() * 2).toFixed(1),
-                mem: parts[4],
-                cmd: parts[0],
-              });
-            }
-          }
-        }
-      }
-    } catch {}
-
-    return {
-      cpuCount: cpus.length,
-      cpuModel: cpus[0]?.model || 'Host CPU',
-      memUsed: formatBytes(usedMem),
-      memTotal: formatBytes(totalMem),
-      uptime: uptimeStr,
-      processes,
-    };
-  });
-
-  ipcMain.handle('dualsurf:getKaliRuntimes', async () => {
-    try {
-      const { kaliRuntimeManager } = await import(pathToFileURL(path.join(cliToolsDir, 'kaliManager.js')).href);
-      return kaliRuntimeManager.probeAvailableRuntimes();
-    } catch (err: any) {
-      console.warn('[Main] getKaliRuntimes error:', err.message);
-      return [];
-    }
-  });
-
-  ipcMain.handle('dualsurf:setActiveKaliRuntime', async (_event, runtimeId: string) => {
-    try {
-      const { kaliRuntimeManager } = await import(pathToFileURL(path.join(cliToolsDir, 'kaliManager.js')).href);
-      return kaliRuntimeManager.setActiveRuntime(runtimeId);
-    } catch {
-      return false;
-    }
-  });
-
-  ipcMain.handle('dualsurf:getKaliMetapackages', async () => {
-    try {
-      const { KALI_METAPACKAGES } = await import(pathToFileURL(path.join(cliToolsDir, 'kaliManager.js')).href);
-      return KALI_METAPACKAGES;
-    } catch {
-      return [];
-    }
-  });
-
-  ipcMain.handle('dualsurf:getKaliLabs', async () => {
-    try {
-      const { kaliLabManager } = await import(pathToFileURL(path.join(cliToolsDir, 'kaliManager.js')).href);
-      return kaliLabManager.listLabs();
-    } catch {
-      return [];
-    }
-  });
-
-  ipcMain.handle('dualsurf:proposeCopilotCommand', async (_event, task: string, target?: string) => {
-    try {
-      const { kaliCopilotEngine } = await import(pathToFileURL(path.join(cliToolsDir, 'kaliManager.js')).href);
-      return kaliCopilotEngine.proposeCommand(task, target);
-    } catch {
-      return null;
-    }
-  });
-
-  ipcMain.handle('dualsurf:generateSecurityReport', async (_event, targetUrl?: string, options?: any) => {
-    try {
-      const state = ctrl.getState();
-      const activeTab = state.tabs.find((t) => t.id === state.activeTabId);
-      const url = targetUrl || activeTab?.url || 'https://example.com';
-      const { runAutomatedSecurityAudit } = await import(pathToFileURL(path.join(cliToolsDir, 'autoAudit.js')).href);
-      const result = await runAutomatedSecurityAudit(url, {
-        exportReport: true,
-        autoExportReport: true,
-        exportJson: true,
-        ...(options || {}),
-      });
-      return { success: true, result };
-    } catch (err: any) {
-      console.error('[Main] generateSecurityReport error:', err);
-      return { success: false, error: err.message };
-    }
-  });
-
-  ipcMain.handle('dualsurf:listAuditReports', async () => {
-    try {
-      const repoRoot = findRepoRoot(process.cwd()) || process.cwd();
-      const reportsDir = path.join(repoRoot, 'reports');
-      const files: { name: string; path: string; size: number; mtime: string; type: 'html' | 'md' | 'json' | 'sarif' }[] = [];
-
-      const searchDirs = [process.cwd(), reportsDir].filter((d) => fs.existsSync(d));
-      for (const dir of searchDirs) {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const e of entries) {
-          if (e.isFile() && (e.name.startsWith('audit-') || e.name.endsWith('-report.html') || e.name.endsWith('-report.md'))) {
-            const fullPath = path.join(dir, e.name);
-            const stat = fs.statSync(fullPath);
-            const ext = path.extname(e.name).replace('.', '').toLowerCase();
-            files.push({
-              name: e.name,
-              path: fullPath,
-              size: stat.size,
-              mtime: stat.mtime.toISOString(),
-              type: (['html', 'md', 'json', 'sarif'].includes(ext) ? ext : 'md') as any,
-            });
-          }
-        }
-      }
-      const unique = Array.from(new Map(files.map((f) => [f.path, f])).values());
-      unique.sort((a, b) => new Date(b.mtime).getTime() - new Date(a.mtime).getTime());
-      return unique;
-    } catch (err: any) {
-      console.warn('[Main] listAuditReports error:', err.message);
-      return [];
-    }
-  });
-
-  ipcMain.handle('dualsurf:readAuditReport', async (_event, filePathOrName: string) => {
-    try {
-      const repoRoot = findRepoRoot(process.cwd()) || process.cwd();
-      let targetPath = filePathOrName;
-      if (!path.isAbsolute(targetPath)) {
-        if (fs.existsSync(path.join(repoRoot, 'reports', targetPath))) {
-          targetPath = path.join(repoRoot, 'reports', targetPath);
-        } else if (fs.existsSync(path.join(process.cwd(), targetPath))) {
-          targetPath = path.join(process.cwd(), targetPath);
-        }
-      }
-      if (fs.existsSync(targetPath)) {
-        return fs.readFileSync(targetPath, 'utf8');
-      }
-      return '';
-    } catch (err: any) {
-      console.warn('[Main] readAuditReport error:', err.message);
-      return '';
-    }
-  });
-
-  ipcMain.handle('dualsurf:getSpecialistWorkspaceData', async (event, mode: string) => {
-    if (!isTrustedSender(event)) {
-      throw new Error('Unauthorized sender');
-    }
-    try {
-      const state = ctrl.getState();
-      const activeTab = state.tabs.find((t) => t.id === state.activeTabId);
-      const networkInterfaces = os.networkInterfaces();
-
-      let evidenceCount = 0;
-      let findingsCount = 0;
-      let evidenceList: any[] = [];
-      let findingsList: any[] = [];
-      let redDomains: any[] = [];
-      let redPillars: any[] = [];
-      let redChecklist: any[] = [];
-      let engagementScopes: any[] = [];
-      let blueDomains: any[] = [];
-      let bluePillars: any[] = [];
-      let incidentCases: any[] = [];
-      let blueChecklist: any[] = [];
-      let telemetrySources: any[] = [];
-      let threatHunts: any[] = [];
-      let detectedBlueTools: any[] = [];
-      let purpleTestCases: any[] = [];
-
-      try {
-        const { evidenceStore } = await import(pathToFileURL(path.join(cliToolsDir, 'evidenceStore.js')).href);
-        const {
-          findingStore,
-          RED_TEAM_DOMAINS,
-          RED_TEAM_PILLARS,
-          redChecklistStore,
-          engagementStore,
-        } = await import(pathToFileURL(path.join(cliToolsDir, 'redTeam.js')).href);
-        const {
-          BLUE_TEAM_DOMAINS,
-          BLUE_TEAM_OPERATIONAL_PILLARS,
-          incidentStore,
-          checklistManager,
-        } = await import(pathToFileURL(path.join(cliToolsDir, 'blueTeam.js')).href);
-        const { detectHostBlueTeamTools } = await import(pathToFileURL(path.join(cliToolsDir, 'executionEngine.js')).href);
-        const { listTelemetrySources, listThreatHunts } = await import(pathToFileURL(path.join(cliToolsDir, 'blueTelemetry.js')).href);
-
-        const allEv = evidenceStore.listEvidence();
-        evidenceCount = allEv.length;
-        evidenceList = allEv.slice(-50).reverse();
-
-        const allFind = findingStore.listFindings();
-        findingsCount = allFind.length;
-        findingsList = allFind.slice(-50).reverse();
-
-        redDomains = RED_TEAM_DOMAINS || [];
-        redPillars = RED_TEAM_PILLARS || [];
-        redChecklist = redChecklistStore ? redChecklistStore.getChecklist() : [];
-        engagementScopes = engagementStore ? engagementStore.listScopes() : [];
-
-        blueDomains = BLUE_TEAM_DOMAINS || [];
-        bluePillars = BLUE_TEAM_OPERATIONAL_PILLARS || [];
-        incidentCases = incidentStore ? incidentStore.listCases() : [];
-        blueChecklist = checklistManager ? checklistManager.getChecklist() : [];
-        telemetrySources = listTelemetrySources ? await listTelemetrySources() : [];
-        threatHunts = listThreatHunts ? listThreatHunts() : [];
-        detectedBlueTools = detectHostBlueTeamTools ? await detectHostBlueTeamTools() : [];
-
-        try {
-          const { PURPLE_TEAM_TEST_CASES } = await import(pathToFileURL(path.join(cliToolsDir, 'purpleTeam.js')).href);
-          purpleTestCases = PURPLE_TEAM_TEST_CASES || [];
-        } catch {}
-      } catch (err: any) {
-        console.warn('[Main] getSpecialistWorkspaceData partial import error:', err.message);
-      }
-
-      return {
-        mode,
-        hostname: os.hostname(),
-        platform: process.platform,
-        activeTabUrl: activeTab?.url || 'about:blank',
-        activeTabTitle: activeTab?.title || 'DualSurf',
-        networkInterfaces,
-        evidenceCount,
-        findingsCount,
-        evidenceList,
-        findingsList,
-        redDomains,
-        redPillars,
-        redChecklist,
-        engagementScopes,
-        blueDomains,
-        bluePillars,
-        incidentCases,
-        blueChecklist,
-        telemetrySources,
-        threatHunts,
-        detectedBlueTools,
-        purpleTestCases,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (err: any) {
-      return { error: err.message };
-    }
-  });
-
-  ipcMain.handle('dualsurf:executeBlueTeamAction', async (event, action: string, target?: string, extraArgs?: string[]) => {
-    if (!isTrustedSender(event)) throw new Error('Unauthorized sender');
-    try {
-      const { executeBlueTeamTool } = await import(pathToFileURL(path.join(cliToolsDir, 'blueTeam.js')).href);
-      return await executeBlueTeamTool(action, target, extraArgs);
-    } catch (err: any) {
-      return { status: 'FAILED', output: `Error: ${err.message}`, durationMs: 0 };
-    }
-  });
-
-  ipcMain.handle('dualsurf:manageIncidentCase', async (event, operation: string, payload: any) => {
-    if (!isTrustedSender(event)) throw new Error('Unauthorized sender');
-    try {
-      const { incidentStore } = await import(pathToFileURL(path.join(cliToolsDir, 'blueTeam.js')).href);
-      if (operation === 'create') {
-        return incidentStore.createCase(payload.title, payload.severity, payload.category, payload);
-      } else if (operation === 'updateStatus') {
-        return incidentStore.updateCaseStatus(payload.id, payload.status, payload.note);
-      } else if (operation === 'markFalsePositive') {
-        return incidentStore.markFalsePositive(payload.id, payload.reason);
-      } else if (operation === 'linkEvidence') {
-        return incidentStore.linkEvidence(payload.id, payload.evidenceId);
-      } else if (operation === 'updateSeverity') {
-        return incidentStore.updateSeverity(payload.id, payload.severity, payload.note);
-      } else if (operation === 'addNote') {
-        return incidentStore.addNote(payload.id, payload.text, payload.author || 'Analyst');
-      }
-      return null;
-    } catch (err: any) {
-      console.warn('[Main] manageIncidentCase error:', err.message);
-      return null;
-    }
-  });
-
-  ipcMain.handle('dualsurf:runThreatHunt', async (event, huntId: string, sourceId?: string) => {
-    if (!isTrustedSender(event)) throw new Error('Unauthorized sender');
-    try {
-      const { runThreatHunt } = await import(pathToFileURL(path.join(cliToolsDir, 'blueTelemetry.js')).href);
-      return await runThreatHunt(huntId, sourceId);
-    } catch (err: any) {
-      return { hunt: { id: huntId, title: 'Threat Hunt Failed' }, matches: [], explanation: `Hunt failed: ${err.message}` };
-    }
-  });
-
-  ipcMain.handle('dualsurf:executePurpleAction', async (event, action: string, payload?: any) => {
-    if (!isTrustedSender(event)) throw new Error('Unauthorized sender');
-    try {
-      const {
-        CONTROLLED_PURPLE_ENVIRONMENTS,
-        STANDARDIZED_PURPLE_SCENARIOS,
-        PURPLE_TEAM_TEST_CASES,
-        purpleStore,
-        executePurpleScenario,
-        calculatePurpleScorecard,
-      } = await import(pathToFileURL(path.join(cliToolsDir, 'purpleTeam.js')).href);
-
-      if (action === 'getOverview') {
-        const assessments = purpleStore.listAssessments();
-        const scorecards = assessments.map((a: any) => calculatePurpleScorecard(a.id));
-        return {
-          environments: CONTROLLED_PURPLE_ENVIRONMENTS,
-          scenarios: STANDARDIZED_PURPLE_SCENARIOS,
-          testCases: PURPLE_TEAM_TEST_CASES,
-          assessments,
-          scorecards,
-        };
-      } else if (action === 'executeScenario') {
-        const { scenarioId, environmentId, operator } = payload || {};
-        return await executePurpleScenario(scenarioId, environmentId, operator || 'Analyst');
-      } else if (action === 'createAssessment') {
-        const { title, environmentId, targetRange, operator } = payload || {};
-        return purpleStore.createAssessment(title, environmentId, targetRange, operator || 'Purple Team Lead');
-      } else if (action === 'getScorecard') {
-        return calculatePurpleScorecard(payload?.assessmentId);
-      }
-      return null;
-    } catch (err: any) {
-      console.warn('[Main] executePurpleAction error:', err.message);
-      return { error: err.message };
-    }
   });
 }
 
@@ -2261,6 +1235,14 @@ if (!gotTheLock) {
 }
 
 app.on('window-all-closed', () => {
+  for (const [sessionId, pty] of activePtys.entries()) {
+    try {
+      if (typeof pty.kill === 'function') pty.kill();
+    } catch {}
+  }
+  activePtys.clear();
+  activePtyMeta.clear();
+
   if (ipcServer) {
     ipcServer.stop().finally(() => app.quit());
   } else {

@@ -1,0 +1,267 @@
+{
+  "timestamp": "2026-10-24T19:35:00.000Z",
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26300"
+  },
+  "tools": [
+    {
+      "id": "nmap",
+      "name": "Nmap",
+      "module": "network_reconnaissance",
+      "bin": "nmap",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": true,
+      "capabilities": [
+        "TCP SYN / Connect Port Scanning",
+        "Service and Version Fingerprinting",
+        "OS Detection",
+        "NSE Script Engine Automation"
+      ],
+      "applicabilityToTarget": "Conservative single-port check applicable; broad port sweeps prohibited on shared Vercel IP.",
+      "liveTestStatus": "NOT_INSTALLED",
+      "documentationUrl": "https://nmap.org/docs.html"
+    },
+    {
+      "id": "wireshark",
+      "name": "Wireshark",
+      "module": "network_reconnaissance",
+      "bin": "wireshark",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": true,
+      "capabilities": [
+        "Interactive Graphical Packet Analysis",
+        "Deep Protocol Dissection",
+        "Flow Graph & Stream Reassembly"
+      ],
+      "applicabilityToTarget": "Local interface packet inspection applicable; requires Npcap driver.",
+      "liveTestStatus": "NOT_INSTALLED",
+      "documentationUrl": "https://www.wireshark.org/docs/wsug_html/"
+    },
+    {
+      "id": "tshark",
+      "name": "TShark",
+      "module": "network_reconnaissance",
+      "bin": "tshark",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": true,
+      "capabilities": [
+        "Headless Command-Line Packet Capture",
+        "Capture Filter & Display Filter Processing",
+        "PCAP / PCAPNG Dissection & JSON Export"
+      ],
+      "applicabilityToTarget": "Diagnostic capture of HTTPS sessions applicable.",
+      "liveTestStatus": "NOT_INSTALLED",
+      "documentationUrl": "https://www.wireshark.org/docs/man-pages/tshark.html"
+    },
+    {
+      "id": "ncat",
+      "name": "Ncat",
+      "module": "network_reconnaissance",
+      "bin": "ncat",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": false,
+      "capabilities": [
+        "Arbitrary TCP/UDP Connection Brokering",
+        "TLS Client / Server Handshake Probing",
+        "Socket Redirection & Port Forwarding"
+      ],
+      "applicabilityToTarget": "Basic TLS handshake diagnostic check on port 443.",
+      "liveTestStatus": "NOT_INSTALLED",
+      "documentationUrl": "https://nmap.org/ncat/guide/"
+    },
+    {
+      "id": "netcat",
+      "name": "Netcat",
+      "module": "network_reconnaissance",
+      "bin": "nc",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": false,
+      "capabilities": [
+        "Raw TCP/UDP Socket Interaction",
+        "Banner Grabbing & Port Reachability Diagnostics"
+      ],
+      "applicabilityToTarget": "Raw port reachability testing.",
+      "liveTestStatus": "NOT_INSTALLED",
+      "documentationUrl": "https://sectools.org/tool/netcat/"
+    },
+    {
+      "id": "masscan",
+      "name": "Masscan",
+      "module": "network_reconnaissance",
+      "bin": "masscan",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": true,
+      "capabilities": [
+        "Asynchronous High-Speed SYN Scanning",
+        "Internet-Scale Port Discovery"
+      ],
+      "applicabilityToTarget": "NOT RUN — Explicit infrastructure scope and rate approval required. Forbidden on shared Vercel CDN infrastructure.",
+      "liveTestStatus": "EXCLUDED_BY_POLICY",
+      "documentationUrl": "https://github.com/robertdavidgraham/masscan"
+    },
+    {
+      "id": "burp",
+      "name": "Burp Suite",
+      "module": "web_application_testing",
+      "bin": "burpsuite",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": false,
+      "capabilities": [
+        "HTTP/S Interception Proxy (127.0.0.1:8080)",
+        "Request History & Repeater",
+        "Intruder & Decoder",
+        "Passive Web Security Analysis"
+      ],
+      "applicabilityToTarget": "Proxy routing and manual Repeater testing applicable.",
+      "liveTestStatus": "NOT_INSTALLED",
+      "documentationUrl": "https://portswigger.net/burp/documentation"
+    },
+    {
+      "id": "zap",
+      "name": "OWASP ZAP",
+      "module": "web_application_testing",
+      "bin": "zaproxy",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": false,
+      "capabilities": [
+        "Proxy Analysis & Passive Scanner",
+        "Automation Framework (AF) Execution",
+        "REST API Automation",
+        "Alert Triage & Report Generation"
+      ],
+      "applicabilityToTarget": "Passive scanning and spidering applicable under conservative rates.",
+      "liveTestStatus": "NOT_INSTALLED",
+      "documentationUrl": "https://www.zaproxy.org/docs/automate/automation-framework/"
+    },
+    {
+      "id": "devtools",
+      "name": "Browser Developer Tools",
+      "module": "web_application_testing",
+      "bin": "devtools",
+      "installed": true,
+      "version": "Chrome 130.0.6723.44 (Electron 33.0.0)",
+      "path": "Built-in (DualSurf Chromium Web Engine)",
+      "requiresElevation": false,
+      "capabilities": [
+        "Live Network Request & Header Inspection",
+        "JavaScript Console & Exception Tracking",
+        "DOM & CSS Live Inspection",
+        "Storage, Cookie & Cache Analysis",
+        "Security Panel (TLS Certificate & Mixed Content)"
+      ],
+      "applicabilityToTarget": "Directly used to inspect https://www.amankumarx1.xyz/ page assets, scripts, headers, and console behavior.",
+      "liveTestStatus": "VERIFIED_ACTIVE",
+      "documentationUrl": "https://developer.chrome.com/docs/devtools/"
+    },
+    {
+      "id": "ffuf",
+      "name": "ffuf",
+      "module": "web_application_testing",
+      "bin": "ffuf",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": false,
+      "capabilities": [
+        "High-Speed Web Directory & Resource Fuzzing",
+        "HTTP Response Code & Length Filtering",
+        "Virtual Host & Parameter Discovery"
+      ],
+      "applicabilityToTarget": "Bounded path discovery with conservative rate controls applicable.",
+      "liveTestStatus": "NOT_INSTALLED",
+      "documentationUrl": "https://github.com/ffuf/ffuf/wiki"
+    },
+    {
+      "id": "bloodhound",
+      "name": "BloodHound",
+      "module": "identity_assessment",
+      "bin": "bloodhound",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": false,
+      "capabilities": [
+        "Active Directory Graph-Based Relationship Mapping",
+        "Hidden Privilege Escalation & ACL Abuse Path Discovery",
+        "Tier 0 Identity Boundary Auditing",
+        "SharpHound JSON Ingestion & Remediation Reporting"
+      ],
+      "applicabilityToTarget": "NOT APPLICABLE — Target is a static public website on Vercel CDN; no Active Directory domain or Neo4j database exists on this target.",
+      "liveTestStatus": "NOT_APPLICABLE",
+      "documentationUrl": "https://bloodhound.readthedocs.io/"
+    },
+    {
+      "id": "sharphound",
+      "name": "SharpHound",
+      "module": "identity_assessment",
+      "bin": "sharphound",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": false,
+      "capabilities": [
+        "Active Directory LDAP & Session Data Collection",
+        "GPO & Organizational Unit Mapping",
+        "Domain Trust & Delegation Mapping"
+      ],
+      "applicabilityToTarget": "NOT APPLICABLE — Target website has no LDAP/Active Directory domain controller.",
+      "liveTestStatus": "NOT_APPLICABLE",
+      "documentationUrl": "https://bloodhound.readthedocs.io/en/latest/data-collection/sharphound.html"
+    },
+    {
+      "id": "impacket",
+      "name": "Impacket Utilities",
+      "module": "identity_assessment",
+      "bin": "impacket",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": false,
+      "capabilities": [
+        "MSRPC & RPC Endpoint Mapper Querying (rpcdump)",
+        "Read-Only LDAP Directory Inventory (GetADUsers)",
+        "SPN Kerberoasting Auditing (GetUserSPNs)",
+        "SMB Client & Share Permission Inspection (smbclient)"
+      ],
+      "applicabilityToTarget": "NOT APPLICABLE — No exposed SMB (445), LDAP (389), or MSRPC (135) services on target.",
+      "liveTestStatus": "NOT_APPLICABLE",
+      "documentationUrl": "https://github.com/fortra/impacket"
+    },
+    {
+      "id": "netexec",
+      "name": "NetExec (nxc)",
+      "module": "identity_assessment",
+      "bin": "nxc",
+      "installed": false,
+      "version": null,
+      "path": null,
+      "requiresElevation": false,
+      "capabilities": [
+        "SMB Signing Enforcement Auditing",
+        "LDAP Domain & Forest Level Identification",
+        "Anonymous / Guest Access Auditing"
+      ],
+      "applicabilityToTarget": "NOT APPLICABLE — No Windows enterprise network protocols exposed on public web server.",
+      "liveTestStatus": "NOT_APPLICABLE",
+      "documentationUrl": "https://www.netexec.wiki/"
+    }
+  ]
+}

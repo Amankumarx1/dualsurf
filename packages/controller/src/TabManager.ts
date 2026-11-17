@@ -33,7 +33,7 @@ export class TabManager extends EventEmitter {
   private splitTabId: TabId | null = null;
   private closedTabsHistory: TabState[] = [];
   private window: BrowserWindow | null = null;
-  private contentBounds: Bounds = { x: 0, y: 78, width: 1200, height: 722 };
+  private contentBounds: Bounds = { x: 210, y: 114, width: 1070, height: 686 };
   private navigationService: NavigationService;
   private isViewsVisible: boolean = true;
 
@@ -46,15 +46,59 @@ export class TabManager extends EventEmitter {
     this.window = window;
     this.updateBoundsFromWindow();
 
-    window.on('resize', () => {
+    const onWinResize = () => {
       this.updateBoundsFromWindow();
       this.layoutActiveView();
-    });
+      if (this.window && !this.window.isDestroyed()) {
+        try {
+          this.window.webContents.send('dualsurf:windowResized');
+        } catch {}
+      }
+    };
+
+    window.on('resize', onWinResize);
+    window.on('maximize', onWinResize);
+    window.on('unmaximize', onWinResize);
+    window.on('restore', onWinResize);
   }
 
   public setContentBounds(bounds: Partial<Bounds>): void {
-    this.contentBounds = { ...this.contentBounds, ...bounds };
+    const updatedX = bounds.x !== undefined ? Math.max(0, bounds.x) : this.contentBounds.x;
+    const updatedY = bounds.y !== undefined ? Math.max(0, bounds.y) : this.contentBounds.y;
+
+    let updatedWidth = bounds.width !== undefined ? bounds.width : this.contentBounds.width;
+    let updatedHeight = bounds.height !== undefined ? bounds.height : this.contentBounds.height;
+
+    if (this.window && !this.window.isDestroyed()) {
+      const [winWidth, winHeight] = this.window.getContentSize();
+      const maxW = Math.max(winWidth - updatedX, 100);
+      const maxH = Math.max(winHeight - updatedY, 100);
+
+      if (updatedWidth === undefined || updatedWidth <= 0) {
+        updatedWidth = maxW;
+      } else {
+        // Strict boundary: Never allow content bounds width to extend beyond the window
+        updatedWidth = Math.min(updatedWidth, maxW);
+      }
+
+      if (updatedHeight === undefined || updatedHeight <= 0) {
+        updatedHeight = maxH;
+      } else {
+        updatedHeight = Math.min(updatedHeight, maxH);
+      }
+    }
+
+    this.contentBounds = {
+      x: updatedX,
+      y: updatedY,
+      width: Math.max(updatedWidth || 100, 100),
+      height: Math.max(updatedHeight || 100, 100),
+    };
     this.layoutActiveView();
+  }
+
+  public getContentBounds(): Bounds {
+    return { ...this.contentBounds };
   }
 
   public setViewsVisible(visible: boolean): void {
@@ -116,8 +160,10 @@ export class TabManager extends EventEmitter {
   private updateBoundsFromWindow(): void {
     if (!this.window || this.window.isDestroyed()) return;
     const [width, height] = this.window.getContentSize();
-    this.contentBounds.width = Math.max(width, 100);
-    this.contentBounds.height = Math.max(height - this.contentBounds.y, 100);
+    const effectiveX = Math.max(0, this.contentBounds.x || 0);
+    const effectiveY = Math.max(0, this.contentBounds.y || 0);
+    this.contentBounds.width = Math.max(width - effectiveX, 100);
+    this.contentBounds.height = Math.max(height - effectiveY, 100);
   }
 
   private layoutActiveView(): void {
@@ -128,34 +174,46 @@ export class TabManager extends EventEmitter {
     const showActive = active && !isInternalNewTab(active.state.url);
     const showSplit = split && split.state.id !== this.activeTabId && !isInternalNewTab(split.state.url);
 
+    if (!showActive && !showSplit) return;
+
+    // Strict window containment: WebContentsView must NEVER overflow beyond the window frame
+    const [winWidth, winHeight] = this.window.getContentSize();
+    const effectiveX = Math.max(0, this.contentBounds.x);
+    const effectiveY = Math.max(0, this.contentBounds.y);
+    const maxAllowedWidth = Math.max(100, winWidth - effectiveX);
+    const maxAllowedHeight = Math.max(100, winHeight - effectiveY);
+
+    const safeWidth = Math.min(this.contentBounds.width, maxAllowedWidth);
+    const safeHeight = Math.min(this.contentBounds.height, maxAllowedHeight);
+
     if (showActive && showSplit && split) {
       // Dual-View Side-by-Side Arrangement
-      const halfWidth = Math.floor(this.contentBounds.width / 2);
+      const halfWidth = Math.floor(safeWidth / 2);
       active.view.setBounds({
-        x: this.contentBounds.x,
-        y: this.contentBounds.y,
+        x: effectiveX,
+        y: effectiveY,
         width: halfWidth,
-        height: this.contentBounds.height,
+        height: safeHeight,
       });
       split.view.setBounds({
-        x: this.contentBounds.x + halfWidth,
-        y: this.contentBounds.y,
-        width: this.contentBounds.width - halfWidth,
-        height: this.contentBounds.height,
+        x: effectiveX + halfWidth,
+        y: effectiveY,
+        width: safeWidth - halfWidth,
+        height: safeHeight,
       });
     } else if (showActive && active) {
       active.view.setBounds({
-        x: this.contentBounds.x,
-        y: this.contentBounds.y,
-        width: this.contentBounds.width,
-        height: this.contentBounds.height,
+        x: effectiveX,
+        y: effectiveY,
+        width: safeWidth,
+        height: safeHeight,
       });
     } else if (showSplit && split) {
       split.view.setBounds({
-        x: this.contentBounds.x,
-        y: this.contentBounds.y,
-        width: this.contentBounds.width,
-        height: this.contentBounds.height,
+        x: effectiveX,
+        y: effectiveY,
+        width: safeWidth,
+        height: safeHeight,
       });
     }
   }

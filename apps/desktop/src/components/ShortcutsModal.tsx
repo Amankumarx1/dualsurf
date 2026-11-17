@@ -9,7 +9,7 @@ interface ShortcutsModalProps {
 interface ShortcutItem {
   keys: string[];
   description: string;
-  category: 'Tabs & Navigation' | 'Terminal & Shell' | 'Security & Inspect' | 'Data & Window';
+  category: 'Tabs & Navigation' | 'Terminal & Shell' | 'Developer & Inspect' | 'Data & Window';
 }
 
 const SHORTCUTS: ShortcutItem[] = [
@@ -36,10 +36,10 @@ const SHORTCUTS: ShortcutItem[] = [
   { keys: ['Tab'], description: 'Autocomplete command name', category: 'Terminal & Shell' },
   { keys: ['↑', '↓'], description: 'Browse previous command history', category: 'Terminal & Shell' },
 
-  // Security & Inspect
-  { keys: ['Ctrl', 'I'], description: 'Toggle Page Inspector & DOM Drawer', category: 'Security & Inspect' },
-  { keys: ['F12'], description: 'Toggle Chromium Developer Tools', category: 'Security & Inspect' },
-  { keys: ['Ctrl', 'F'], description: 'Find text occurrences in page', category: 'Security & Inspect' },
+  // Developer & Inspect
+  { keys: ['Ctrl', 'I'], description: 'Toggle Page Inspector & DOM Drawer', category: 'Developer & Inspect' },
+  { keys: ['F12'], description: 'Toggle Chromium Developer Tools', category: 'Developer & Inspect' },
+  { keys: ['Ctrl', 'F'], description: 'Find text occurrences in page', category: 'Developer & Inspect' },
 
   // Data & Window
   { keys: ['Ctrl', 'Shift', 'Del'], description: 'Clear browsing data (history, cookies, cache)', category: 'Data & Window' },

@@ -9,6 +9,17 @@ export default defineConfig({
   build: {
     outDir: 'dist/renderer',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@xterm')) return 'vendor-xterm';
+            if (id.includes('lucide-react')) return 'vendor-icons';
+            if (id.includes('react') || id.includes('scheduler')) return 'vendor-react';
+          }
+        },
+      },
+    },
   },
   server: {
     host: '0.0.0.0',

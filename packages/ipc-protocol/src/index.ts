@@ -85,6 +85,7 @@ export const IPC_COMMANDS = {
   PROXY_START: 'proxy.start',
   PROXY_STOP: 'proxy.stop',
   REPEATER_SEND: 'repeater.send',
+  DEVTOOLS_TOGGLE: 'devtools.toggle',
 } as const;
 
 export type IpcCommandType = (typeof IPC_COMMANDS)[keyof typeof IPC_COMMANDS];

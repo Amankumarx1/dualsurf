@@ -22,6 +22,7 @@ import {
   Terminal,
 } from 'lucide-react';
 import type { TabState, WorkspaceGroup } from '@dualsurf/shared-types';
+import { DualSurfLogo } from './DualSurfLogo';
 
 interface TabBarProps {
   tabs: TabState[];
@@ -204,22 +205,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     }
     const lower = (tab.url || '').toLowerCase();
     if (!lower || lower === 'about:blank' || lower.startsWith('dualsurf:')) {
-      return (
-        <svg width="13" height="13" viewBox="0 0 36 36" fill="none" className="tab-favicon">
-          <path
-            d="M7 8C7 5.79086 8.79086 4 11 4H13C14.1046 4 15 4.89543 15 6V22C15 25.3137 12.3137 28 9 28C7.89543 28 7 27.1046 7 26V8Z"
-            fill="currentColor"
-          />
-          <path
-            d="M29 8C29 5.79086 27.2091 4 25 4H23C21.8954 4 21 4.89543 21 6V22C21 25.3137 23.6863 28 27 28C28.1046 28 29 27.1046 29 26V8Z"
-            fill="currentColor"
-          />
-          <path
-            d="M13 14C13 12.8954 13.8954 12 15 12H21C22.1046 12 23 12.8954 23 14V22C23 27.5228 18.5228 32 13 32C12.4477 32 12 31.5523 12 31V25C12 23.8954 12.8954 23 14 23C16.2091 23 18 21.2091 18 19V14C18 12.8954 17.1046 12 16 12H15C13.8954 12 13 12.8954 13 14Z"
-            fill="var(--ds-accent, #ffffff)"
-          />
-        </svg>
-      );
+      return <DualSurfLogo size={13} variant="orange" className="tab-favicon" />;
     }
     if (lower.includes('github.com')) {
       return <Github size={13} className="tab-favicon" />;
@@ -310,7 +296,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                 cursor: 'default',
               }}
             >
-              <Terminal size={13} className="tab-favicon" color="#0284c7" />
+              <Terminal size={13} className="tab-favicon" color="var(--ds-orange, #F45B19)" />
               <span className="tab-title-text" style={{ fontWeight: 600 }}>Terminal</span>
               <button
                 className="tab-close-icon"
@@ -334,7 +320,10 @@ export const TabBar: React.FC<TabBarProps> = ({
         ) : (
           tabs.map((tab) => {
             const isActive = tab.id === activeTabId;
-            const displayTitle = tab.title && tab.title !== 'about:blank' ? tab.title : 'New Tab';
+            let displayTitle = tab.title && tab.title !== 'about:blank' ? tab.title : 'New Tab';
+            if (displayTitle.toLowerCase() === 'newtab' || displayTitle === 'dualsurf://newtab') {
+              displayTitle = 'New Tab';
+            }
 
             return (
               <div

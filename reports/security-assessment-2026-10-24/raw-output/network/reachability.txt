@@ -1,0 +1,26 @@
+=== NETWORK REACHABILITY & PORT OBSERVATION REPORT ===
+Target: www.amankumarx1.xyz
+Resolved IPs: 76.76.21.164, 66.33.60.34
+Assessor Host: 192.168.1.17 (Windows 11 x64)
+Timestamp: 2026-10-24T19:33:00+05:30
+
+Port 80 (HTTP):
+- Status: OPEN (Listening)
+- Response: HTTP/1.0 308 Permanent Redirect to https://www.amankumarx1.xyz/
+- Service: Vercel HTTP-to-HTTPS redirect handler
+- Observation: Plaintext HTTP traffic is rejected and forcefully upgraded to HTTPS.
+
+Port 443 (HTTPS):
+- Status: OPEN (Listening)
+- Response: HTTP/1.1 200 OK
+- TLS Negotiation: Successful
+- Service: Vercel Edge Web Server (POP: bom1)
+- Content-Length: 73,190 bytes
+- Content-Type: text/html; charset=utf-8
+
+Ports 1-79, 81-442, 444-65535:
+- Status: EXCLUDED FROM ACTIVE SCAN
+- Rationale: Target is hosted on Vercel's multi-tenant shared Anycast IP (76.76.21.164). Scanning non-web ports on this IP would probe infrastructure outside the authorized tenant scope and is explicitly prohibited by the assessment rules of engagement.
+
+ICMP Ping:
+- Standard ICMP echo requests to 76.76.21.164 are dropped or rate-limited by Vercel edge firewall, which is standard security posture for edge CDN networks.

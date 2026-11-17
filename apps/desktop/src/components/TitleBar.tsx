@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Moon, Sun, Settings, Minus, Square, Copy, X, Terminal, Globe } from 'lucide-react';
-import dualsurfLogo from '../assets/dualsurf-logo.png';
+import { Moon, Sun, Settings, Minus, Square, Copy, X } from 'lucide-react';
+import { DualSurfLogo } from './DualSurfLogo';
 
 interface TitleBarProps {
   onOpenSettings: () => void;
@@ -10,17 +10,15 @@ interface TitleBarProps {
   currentTheme?: 'dark' | 'light';
   mode?: 'gui' | 'terminal';
   onSwitchMode?: (mode: 'gui' | 'terminal') => void;
+  isConnected?: boolean;
   children?: React.ReactNode;
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({
   onOpenSettings,
-  onOpenWorkspaceModal,
-  workspaceDir,
   onToggleTheme,
   currentTheme = 'dark',
-  mode = 'gui',
-  onSwitchMode,
+  isConnected = true,
   children,
 }) => {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -61,120 +59,63 @@ export const TitleBar: React.FC<TitleBarProps> = ({
 
   return (
     <div className="dualsurf-titlebar-strip" onDoubleClick={handleDoubleClick}>
-      {/* Brand Identity */}
+      {/* Brand Identity on Top Left */}
       <div className="titlebar-brand">
-        <img
-          src={dualsurfLogo}
-          alt="DualSurf Logo"
-          className="dualsurf-brand-logo-img"
-        />
+        <DualSurfLogo size={18} variant={currentTheme === 'light' ? 'dark' : 'white'} />
         <span className="titlebar-brand-name">DualSurf</span>
       </div>
 
-      {/* Center Tabs Strip */}
+      {/* Center Tabs Strip with Workspace Selector */}
       <div className="titlebar-center-tabs">
         {children}
       </div>
 
-      {/* Right controls (non-draggable) */}
+      {/* Right Controls: Connection Status, Theme Toggle, Settings, Window Buttons */}
       <div className="titlebar-actions">
-        {onOpenWorkspaceModal && (
-          <button
-            className="titlebar-sandbox-pill"
-            onClick={onOpenWorkspaceModal}
-            title={`Kali Sandbox Directory: ${workspaceDir || 'Default'}\nClick to change folder access permission`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '3px 10px',
-              borderRadius: '999px',
-              fontSize: '11px',
-              fontFamily: 'monospace',
-              background: 'rgba(0, 164, 228, 0.12)',
-              border: '1px solid rgba(0, 164, 228, 0.35)',
-              color: '#00a4e4',
-              cursor: 'pointer',
-              marginRight: '6px',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <span style={{ fontSize: '11px' }}>🔒</span>
-            <span style={{ maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
-              {workspaceDir ? workspaceDir.split(/[\\/]/).pop() || 'Kali Root' : 'Kali Jail'}
-            </span>
-          </button>
-        )}
+        {/* Connection Status Indicator */}
+        <div className="titlebar-connection-status" title="Connected to DualSurf runtime & controller">
+          <span className={`status-dot ${isConnected ? 'online' : 'offline'}`} />
+          <span className="status-label">{isConnected ? 'Connected' : 'Offline'}</span>
+        </div>
 
-        {onSwitchMode && (
-          <button
-            className="titlebar-mode-toggle-btn"
-            onClick={() => onSwitchMode(mode === 'gui' ? 'terminal' : 'gui')}
-            title={mode === 'gui' ? 'Switch to Kali Terminal (Ctrl+`)' : 'Switch to Browser View (Ctrl+`)'}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '3px 10px',
-              borderRadius: '6px',
-              fontSize: '11px',
-              fontWeight: 600,
-              background: mode === 'terminal' ? 'rgba(0, 164, 228, 0.22)' : 'rgba(255, 255, 255, 0.06)',
-              border: mode === 'terminal' ? '1px solid rgba(0, 164, 228, 0.5)' : '1px solid rgba(255, 255, 255, 0.12)',
-              color: mode === 'terminal' ? '#38bdf8' : '#cbd5e1',
-              cursor: 'pointer',
-              marginRight: '6px',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {mode === 'terminal' ? (
-              <>
-                <Globe size={12} />
-                <span>Browser</span>
-              </>
-            ) : (
-              <>
-                <Terminal size={12} />
-                <span>Kali Terminal</span>
-              </>
-            )}
-          </button>
-        )}
-
+        {/* Theme Toggle Button */}
         <button
           className="titlebar-icon-btn"
           onClick={onToggleTheme}
           title={currentTheme === 'light' ? 'Switch to Dark Theme' : 'Switch to Light Theme'}
           aria-label="Toggle Theme"
         >
-          {currentTheme === 'light' ? <Sun size={15} /> : <Moon size={15} />}
+          {currentTheme === 'light' ? <Sun size={14} /> : <Moon size={14} />}
         </button>
 
+        {/* Settings Shortcut Button */}
         <button
           className="titlebar-icon-btn"
           onClick={onOpenSettings}
-          title="Settings"
+          title="Browser Settings"
+          aria-label="Settings"
         >
-          <Settings size={15} />
+          <Settings size={14} />
         </button>
 
+        {/* Electron Window Controls */}
         <div className="titlebar-window-buttons">
-          <button className="win-ctrl-btn minimize" onClick={handleMinimize} title="Minimize">
-            <Minus size={13} />
+          <button className="win-ctrl-btn minimize" onClick={handleMinimize} title="Minimize" aria-label="Minimize">
+            <Minus size={12} />
           </button>
           <button
             className="win-ctrl-btn maximize"
             onClick={handleMaximize}
             title={isMaximized ? 'Restore Window' : 'Maximize Window'}
+            aria-label="Maximize"
           >
-            {isMaximized ? <Copy size={11} /> : <Square size={11} />}
+            {isMaximized ? <Copy size={10} /> : <Square size={10} />}
           </button>
-          <button className="win-ctrl-btn close" onClick={handleClose} title="Close">
-            <X size={13} />
+          <button className="win-ctrl-btn close" onClick={handleClose} title="Close" aria-label="Close">
+            <X size={12} />
           </button>
         </div>
       </div>
     </div>
   );
 };
-

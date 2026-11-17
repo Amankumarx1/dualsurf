@@ -1,24 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Home,
+  Terminal,
   Bookmark,
   History,
   Download,
   Settings,
+  Info,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Wrench,
-  Network,
-  GitBranch,
-  RotateCcw,
-  TerminalSquare,
-  Folder,
-  Info,
-  Crosshair,
-  ShieldCheck,
-  Layers,
-  Terminal,
 } from 'lucide-react';
+import { DualSurfLogo } from './DualSurfLogo';
 
 interface SidebarProps {
   mode: 'gui' | 'terminal';
@@ -32,14 +25,21 @@ interface SidebarProps {
   onOpenHistory?: () => void;
   onOpenBookmarks?: () => void;
   onOpenDownloads?: () => void;
-  onOpenTools?: () => void;
-  onOpenNetwork?: () => void;
-  onOpenProxy?: () => void;
-  onOpenRepeater?: () => void;
-  onOpenRedTeam?: () => void;
-  onOpenBlueTeam?: () => void;
-  onOpenPurpleTeam?: () => void;
   onOpenTabSearch?: () => void;
+}
+
+interface NavItem {
+  id: string;
+  label: string;
+  icon: any;
+  action: () => void;
+  isActive: boolean;
+  subRow?: boolean;
+}
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -54,18 +54,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenHistory,
   onOpenBookmarks,
   onOpenDownloads,
-  onOpenTools,
-  onOpenNetwork,
-  onOpenProxy,
-  onOpenRepeater,
-  onOpenRedTeam,
-  onOpenBlueTeam,
-  onOpenPurpleTeam,
   onOpenTabSearch,
 }) => {
   const isTerminal = mode === 'terminal';
+  const [isSystemExpanded, setIsSystemExpanded] = useState(true);
 
-  const navGroups = [
+  const navGroups: NavGroup[] = [
     {
       title: 'BROWSER',
       items: [
@@ -81,13 +75,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: 'terminal',
-          label: 'Kali Terminal',
+          label: 'Terminal',
           icon: Terminal,
           action: () => {
             onSelectSection('terminal');
             onSwitchMode('terminal');
           },
-          isActive: isTerminal,
+          isActive: isTerminal || activeSection === 'terminal',
         },
         {
           id: 'bookmarks',
@@ -122,108 +116,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
     {
-      title: 'WORKSPACE',
-      items: [
-        {
-          id: 'tools',
-          label: 'Tools',
-          icon: Wrench,
-          action: () => {
-            onSelectSection('tools');
-            onOpenTools?.();
-          },
-          isActive: activeSection === 'tools',
-        },
-        {
-          id: 'network',
-          label: 'Network',
-          icon: Network,
-          action: () => {
-            onSelectSection('network');
-            onOpenNetwork?.();
-          },
-          isActive: activeSection === 'network',
-        },
-        {
-          id: 'proxy',
-          label: 'Proxy',
-          icon: GitBranch,
-          action: () => {
-            onSelectSection('proxy');
-            onOpenProxy?.();
-          },
-          isActive: activeSection === 'proxy',
-        },
-        {
-          id: 'repeater',
-          label: 'Repeater',
-          icon: RotateCcw,
-          action: () => {
-            onSelectSection('repeater');
-            onOpenRepeater?.();
-          },
-          isActive: activeSection === 'repeater',
-        },
-      ],
-    },
-    {
-      title: 'SECURITY OPS',
-      items: [
-        {
-          id: 'red-team',
-          label: 'Red Team',
-          icon: Crosshair,
-          action: () => {
-            onSelectSection('red-team');
-            onOpenRedTeam?.();
-          },
-          isActive: activeSection === 'red-team',
-        },
-        {
-          id: 'blue-team',
-          label: 'Blue Team',
-          icon: ShieldCheck,
-          action: () => {
-            onSelectSection('blue-team');
-            onOpenBlueTeam?.();
-          },
-          isActive: activeSection === 'blue-team',
-        },
-        {
-          id: 'purple-team',
-          label: 'Purple Team',
-          icon: Layers,
-          action: () => {
-            onSelectSection('purple-team');
-            onOpenPurpleTeam?.();
-          },
-          isActive: activeSection === 'purple-team',
-        },
-      ],
-    },
-    {
       title: 'SYSTEM',
       items: [
-        {
-          id: 'sessions',
-          label: 'Sessions',
-          icon: TerminalSquare,
-          action: () => {
-            onSelectSection('sessions');
-            onOpenTabSearch?.();
-          },
-          isActive: activeSection === 'sessions',
-        },
-        {
-          id: 'files',
-          label: 'Files',
-          icon: Folder,
-          action: () => {
-            onSelectSection('files');
-            onOpenDownloads?.();
-          },
-          isActive: activeSection === 'files',
-        },
         {
           id: 'settings',
           label: 'Settings',
@@ -233,6 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onOpenSettings();
           },
           isActive: activeSection === 'settings',
+          subRow: true,
         },
         {
           id: 'about',
@@ -243,6 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onOpenAbout?.();
           },
           isActive: activeSection === 'about',
+          subRow: true,
         },
       ],
     },
@@ -251,117 +147,94 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       className={`dualsurf-sidebar ${isCollapsed ? 'collapsed' : 'expanded'}`}
-      style={{
-        width: isCollapsed ? '54px' : '176px',
-        minWidth: isCollapsed ? '54px' : '176px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        height: '100%',
-        userSelect: 'none',
-        transition: 'width 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-        overflowX: 'hidden',
-        overflowY: 'auto',
-        boxSizing: 'border-box',
-        padding: '12px 6px',
-      }}
+      aria-label="Main Navigation"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        {navGroups.map((group) => (
-          <div key={group.title} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            {!isCollapsed && (
-              <div
-                className="sidebar-heading"
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  letterSpacing: '0.6px',
-                  padding: '2px 10px 4px 10px',
-                  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-                }}
+      {/* Top Sidebar Header with DualSurf Orange Logo */}
+      <div className="sidebar-brand-header">
+        <DualSurfLogo size={24} variant="orange" className="sidebar-brand-logo" />
+        {!isCollapsed && <span className="sidebar-brand-name">DualSurf</span>}
+      </div>
+
+      <div className="sidebar-nav-scroll">
+        {/* GROUP 1: BROWSER */}
+        <div className="sidebar-group" data-group="browser">
+          {navGroups[0].items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                id={`nav-${item.id}`}
+                data-testid={`sidebar-${item.id}`}
+                className={`sidebar-row-btn sidebar-nav-item ${item.isActive ? 'active' : ''}`}
+                onClick={item.action}
+                title={item.label}
               >
-                {group.title}
-              </div>
+                <div className="sidebar-row-indicator" />
+                <Icon size={16} className="sidebar-row-icon" />
+                {!isCollapsed && <span className="sidebar-row-label">{item.label}</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="sidebar-divider" />
+
+        {/* GROUP 2: SYSTEM (Collapsible Accordion) */}
+        <div className="sidebar-group" data-group="system">
+          <button
+            className="sidebar-accordion-header"
+            onClick={() => setIsSystemExpanded(!isSystemExpanded)}
+            title="Toggle System Group"
+          >
+            <div className="sidebar-accordion-left">
+              <Settings size={16} className="sidebar-row-icon" />
+              {!isCollapsed && <span className="sidebar-row-label">System</span>}
+            </div>
+            {!isCollapsed && (
+              <ChevronDown
+                size={14}
+                className={`sidebar-chevron ${isSystemExpanded ? 'expanded' : ''}`}
+              />
             )}
+          </button>
 
-            {group.items.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={item.action}
-                  title={item.label}
-                  className={`sidebar-nav-item ${item.isActive ? 'active' : ''}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: isCollapsed ? '0' : '10px',
-                    justifyContent: isCollapsed ? 'center' : 'flex-start',
-                    padding: isCollapsed ? '8px 0' : '6px 10px',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: item.isActive ? 600 : 400,
-                    cursor: 'pointer',
-                    outline: 'none',
-                    textAlign: 'left',
-                    transition: 'all 0.12s ease',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  <Icon
-                    size={15}
-                    className="sidebar-nav-icon"
-                    strokeWidth={item.isActive ? 2.2 : 1.8}
-                  />
-                  {!isCollapsed && (
-                    <span
-                      style={{
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+          {(!isCollapsed ? isSystemExpanded : true) && (
+            <div className="sidebar-accordion-subitems">
+              {navGroups[1].items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    id={`nav-${item.id}`}
+                    data-testid={`sidebar-${item.id}`}
+                    className={`sidebar-row-btn sidebar-nav-item sub-row ${item.isActive ? 'active' : ''}`}
+                    onClick={item.action}
+                    title={item.label}
+                  >
+                    <div className="sidebar-row-indicator" />
+                    <Icon size={15} className="sidebar-row-icon" />
+                    {!isCollapsed && <span className="sidebar-row-label">{item.label}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Bottom collapse / expand toggle matching Screenshot 2 */}
-      <div
-        className="sidebar-collapse-container"
-        style={{
-          paddingTop: '8px',
-          marginTop: '8px',
-          display: 'flex',
-          justifyContent: isCollapsed ? 'center' : 'flex-end',
-          paddingRight: isCollapsed ? '0' : '8px',
-        }}
-      >
-        <button
-          onClick={onToggleCollapse}
-          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-          className="sidebar-collapse-btn"
-          style={{
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '4px',
-          }}
-        >
-          {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
-        </button>
-      </div>
+      {/* Subtle Sidebar Collapse / Expand Toggle at Bottom */}
+      {onToggleCollapse && (
+        <div className="sidebar-footer-collapse">
+          <button
+            className="sidebar-collapse-toggle-btn"
+            onClick={onToggleCollapse}
+            title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+            aria-label="Toggle Sidebar Width"
+          >
+            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        </div>
+      )}
     </aside>
   );
 };
-

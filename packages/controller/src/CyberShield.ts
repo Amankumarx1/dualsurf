@@ -116,6 +116,15 @@ export class CyberShield extends EventEmitter {
     }
   }
 
+  public checkUrl(urlStr: string): { blocked: boolean; rule: BlockRule | null } {
+    const parsed = this.safeParseUrl(urlStr);
+    if (!parsed) return { blocked: false, rule: null };
+    const host = parsed.hostname.toLowerCase();
+    if (this.isWhitelisted(host)) return { blocked: false, rule: null };
+    const rule = this.matchRule(urlStr, host);
+    return { blocked: !!rule, rule };
+  }
+
   public attachToSession(ses: Session): void {
     // Intercept network requests before sending
     ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (details, callback) => {
